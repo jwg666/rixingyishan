@@ -1,0 +1,50 @@
+{
+	"pages": [
+		{
+			"path": "pages/index/index",
+			"style": {
+				"navigationBarTitleText": "日行一善"
+			}
+		},
+		{
+			"path": "pages/create-record/create-record",
+			"style": {
+				"navigationBarTitleText": "新建记录"
+			}
+		},
+		{
+			"path": "pages/record-detail/record-detail",
+			"style": {
+				"navigationBarTitleText": "记录详情"
+			}
+		},
+		{
+			"path": "pages/settings/settings",
+			"style": {
+				"navigationBarTitleText": "设置"
+			}
+		}
+	],
+	"globalStyle": {
+		"navigationBarTextStyle": "black",
+		"navigationBarTitleText": "日行一善",
+		"navigationBarBackgroundColor": "#F8F8F8",
+		"backgroundColor": "#F8F8F8"
+	},
+	"tabBar": {
+		"color": "#999999",
+		"selectedColor": "#1890ff",
+		"borderStyle": "black",
+		"backgroundColor": "#ffffff",
+		"list": [
+			{
+				"pagePath": "pages/index/index",
+				"text": "首页"
+			},
+			{
+				"pagePath": "pages/settings/settings",
+				"text": "设置"
+			}
+		]
+	}
+}
