@@ -19,6 +19,12 @@
 			}
 		},
 		{
+			"path": "pages/ranking/ranking",
+			"style": {
+				"navigationBarTitleText": "功德排行"
+			}
+		},
+		{
 			"path": "pages/settings/settings",
 			"style": {
 				"navigationBarTitleText": "设置"

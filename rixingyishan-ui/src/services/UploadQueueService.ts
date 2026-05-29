@@ -38,6 +38,33 @@ interface UploadPolicy {
   headers?: Record<string, string>;
 }
 
+/**
+ * 检查 Wi-Fi 上传开关是否开启，并判断当前网络是否允许上传
+ * P1-02: 仅 Wi-Fi 上传开关贯通队列
+ */
+function canUploadOverCurrentNetwork(): Promise<boolean> {
+  const wifiOnly = uni.getStorageSync("settings_wifi_only");
+  if (wifiOnly !== "true") {
+    return Promise.resolve(true);
+  }
+
+  return new Promise((resolve) => {
+    uni.getNetworkType({
+      success: (res) => {
+        if (res.networkType === "wifi") {
+          resolve(true);
+        } else {
+          resolve(false);
+        }
+      },
+      fail: () => {
+        // 无法获取网络类型时，允许上传（容错）
+        resolve(true);
+      },
+    });
+  });
+}
+
 export const UploadQueueService = {
   enqueue(recordId: string, mediaIndex: number, localPath: string): string {
     const taskId = generateId();
@@ -87,6 +114,14 @@ export const UploadQueueService = {
 
   async processQueue(): Promise<void> {
     if (isProcessing) return;
+
+    // P1-02: Wi-Fi 上传开关检查
+    const canUpload = await canUploadOverCurrentNetwork();
+    if (!canUpload) {
+      console.log("[UploadQueue] Wi-Fi only mode: non-Wi-Fi network, skipping queue processing");
+      return;
+    }
+
     isProcessing = true;
 
     try {
@@ -233,6 +268,8 @@ export const UploadQueueService = {
         dayKey: record.dayKey,
         createdAt: record.createdAt,
         tags: record.tags,
+        meritTagId: record.meritTagId,
+        meritValue: record.meritValue,
         location: record.location,
       },
     });

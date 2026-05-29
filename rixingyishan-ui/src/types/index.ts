@@ -27,6 +27,8 @@ export interface GoodDeedRecord {
   status: SyncStatus;
   failReason?: string;
   tags?: string[];
+  meritTagId?: number;
+  meritValue?: number;
   location?: {
     name?: string;
     lat?: number;
@@ -44,4 +46,38 @@ export interface UploadTask {
   failReason?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+/** 功德标签 */
+export interface MeritTag {
+  id: number;
+  name: string;
+  icon: string;
+  meritValue: number;
+  keywords: string[];
+}
+
+/** 用户功德统计 */
+export interface UserMerit {
+  totalMerit: number;
+  dailyMerit: number;
+}
+
+/** 排行榜条目 */
+export interface RankingItem {
+  rankPosition: number;
+  nickname: string;
+  avatarSeed: string;
+  meritValue: number;
+  isMe?: boolean;
+}
+
+/** 用户资料 */
+export interface UserProfile {
+  id: number;
+  phone: string;
+  nickname: string | null;
+  avatarSeed: string;
+  totalMerit: number;
+  showInRanking: boolean;
 }

@@ -61,8 +61,58 @@ func AuthRequired() gin.HandlerFunc {
 			return
 		}
 
+		// 检查黑名单
+		if service.TokenBlacklist.Contains(claims.ID) {
+			c.JSON(http.StatusUnauthorized, Response{
+				Code:    40001,
+				Message: "token 已被吊销",
+				Data:    nil,
+			})
+			c.Abort()
+			return
+		}
+
 		c.Set("userId", claims.UserID)
 		c.Set("phone", claims.Phone)
+		c.Set("jti", claims.ID)
+		c.Next()
+	}
+}
+
+// OptionalAuth 可选认证中间件（有 token 就解析，没有也放行）
+func OptionalAuth() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			c.Next()
+			return
+		}
+
+		parts := strings.SplitN(authHeader, " ", 2)
+		if len(parts) != 2 || parts[0] != "Bearer" {
+			c.Next()
+			return
+		}
+
+		claims, err := service.ParseToken(parts[1])
+		if err != nil {
+			c.Next()
+			return
+		}
+
+		if claims.Type != "access" {
+			c.Next()
+			return
+		}
+
+		if service.TokenBlacklist.Contains(claims.ID) {
+			c.Next()
+			return
+		}
+
+		c.Set("userId", claims.UserID)
+		c.Set("phone", claims.Phone)
+		c.Set("jti", claims.ID)
 		c.Next()
 	}
 }
@@ -75,4 +125,14 @@ func GetUserID(c *gin.Context) uint {
 		}
 	}
 	return 0
+}
+
+// GetJTI 从 context 获取 jti
+func GetJTI(c *gin.Context) string {
+	if v, exists := c.Get("jti"); exists {
+		if jti, ok := v.(string); ok {
+			return jti
+		}
+	}
+	return ""
 }

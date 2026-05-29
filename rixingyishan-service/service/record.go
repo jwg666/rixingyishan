@@ -23,8 +23,13 @@ func (s *RecordService) CreateRecord(userID uint, req *CreateRecordReq) (*model.
 		UserID:      userID,
 		Type:        req.Type,
 		Content:     req.Content,
+		Tag:         req.Tag,
+		MeritValue:  req.MeritValue,
 		RecordDate:  req.RecordDate,
 		SyncVersion: 1,
+	}
+	if record.Tag == "" {
+		record.Tag = "其他善行"
 	}
 	if err := s.DB.Create(record).Error; err != nil {
 		return nil, err
@@ -44,6 +49,13 @@ func (s *RecordService) CreateRecord(userID uint, req *CreateRecordReq) (*model.
 		}
 		record.Media = append(record.Media, media)
 	}
+
+	// 累加用户功德
+	if record.MeritValue > 0 {
+		s.DB.Model(&model.User{}).Where("id = ?", userID).
+			UpdateColumn("total_merit", gorm.Expr("total_merit + ?", record.MeritValue))
+	}
+
 	return record, nil
 }
 
@@ -101,10 +113,12 @@ func (s *RecordService) GetDaysByMonth(userID uint, month string) ([]string, err
 
 // CreateRecordReq 创建记录请求
 type CreateRecordReq struct {
-	Type       string         `json:"type" binding:"required,oneof=photo video text"`
-	Content    string         `json:"content"`
-	RecordDate string         `json:"recordDate" binding:"required"`
-	Media      []MediaInput   `json:"media"`
+	Type       string       `json:"type" binding:"required,oneof=photo video text"`
+	Content    string       `json:"content"`
+	Tag        string       `json:"tag"`
+	MeritValue int          `json:"meritValue"`
+	RecordDate string       `json:"recordDate" binding:"required"`
+	Media      []MediaInput `json:"media"`
 }
 
 // MediaInput 媒体输入

@@ -1,5 +1,24 @@
 <template>
   <view class="container">
+    <!-- 功德展示区 -->
+    <view class="merit-card" @click="goToRanking">
+      <view v-if="isLoggedIn" class="merit-content">
+        <view class="merit-main">
+          <text class="merit-icon">✨</text>
+          <text class="merit-number">{{ totalMerit }}</text>
+          <text class="merit-label">功德</text>
+        </view>
+        <view class="merit-daily">
+          <text class="daily-text">今日 +{{ dailyMerit }}</text>
+        </view>
+      </view>
+      <view v-else class="merit-login-hint" @click.stop="goToLogin">
+        <text class="merit-icon">✨</text>
+        <text class="login-hint-text">登录后查看功德</text>
+        <text class="login-hint-arrow">→</text>
+      </view>
+    </view>
+
     <view class="calendar-section">
       <view class="calendar-header">
         <text class="month-text">{{ currentMonthText }}</text>
@@ -64,7 +83,10 @@
               mode="aspectFill"
             />
           </view>
-          <text class="record-time">{{ formatTime(record.createdAt) }}</text>
+          <view class="record-footer">
+            <text class="record-time">{{ formatTime(record.createdAt) }}</text>
+            <text v-if="record.meritValue" class="record-merit">+{{ record.meritValue }} ✨</text>
+          </view>
         </view>
       </view>
     </view>
@@ -73,13 +95,18 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
+import { onShow } from "@dcloudio/uni-app";
 import { RecordRepository } from "@/services/RecordRepository";
-import type { GoodDeedRecord } from "@/types";
+import { AuthService } from "@/services/AuthService";
+import { MeritService } from "@/services/MeritService";
 
 const weekdays = ["日", "一", "二", "三", "四", "五", "六"];
 
 const currentDate = ref(new Date());
 const selectedDayKey = ref(getDayKey(new Date()));
+const isLoggedIn = ref(false);
+const totalMerit = ref(0);
+const dailyMerit = ref(0);
 
 const currentMonthText = computed(() => {
   const date = currentDate.value;
@@ -135,7 +162,33 @@ const currentRecords = ref<GoodDeedRecord[]>([]);
 
 onMounted(() => {
   loadRecordsForSelectedDay();
+  refreshMeritData();
+  refreshAuthState();
 });
+
+// P1-01: onShow 时也刷新选中日的列表 + 功德数据
+onShow(() => {
+  loadRecordsForSelectedDay();
+  refreshMeritData();
+  refreshAuthState();
+});
+
+function refreshAuthState() {
+  isLoggedIn.value = AuthService.isLoggedIn();
+}
+
+async function refreshMeritData() {
+  if (!AuthService.isLoggedIn()) return;
+  try {
+    const merit = await MeritService.getUserMerit();
+    if (merit) {
+      totalMerit.value = merit.totalMerit;
+      dailyMerit.value = merit.dailyMerit;
+    }
+  } catch {
+    // 静默失败
+  }
+}
 
 function getDayKey(date: Date): string {
   const year = date.getFullYear();
@@ -173,6 +226,14 @@ function goToDetail(id: string) {
   uni.navigateTo({ url: `/pages/record-detail/record-detail?id=${id}` });
 }
 
+function goToRanking() {
+  uni.navigateTo({ url: "/pages/ranking/ranking" });
+}
+
+function goToLogin() {
+  uni.navigateTo({ url: "/pages/login/login" });
+}
+
 function getRecordTypeText(type: string): string {
   const map: Record<string, string> = {
     photo: "图片",
@@ -201,13 +262,85 @@ function formatTime(isoString: string): string {
 }
 </script>
 
+<script lang="ts">
+import type { GoodDeedRecord } from "@/types";
+export default { name: "IndexPage" };
+</script>
+
 <style scoped>
 .container {
   min-height: 100vh;
-  background-color: #f5f5f5;
+  background-color: #FFF8F0;
   padding: 20rpx;
 }
 
+/* 功德卡片 */
+.merit-card {
+  background: linear-gradient(135deg, #FFF0E5 0%, #FFE4CC 100%);
+  border-radius: 16rpx;
+  padding: 32rpx 24rpx;
+  margin-bottom: 20rpx;
+  box-shadow: 0 4rpx 12rpx rgba(232, 115, 58, 0.15);
+}
+
+.merit-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.merit-main {
+  display: flex;
+  align-items: baseline;
+  gap: 8rpx;
+}
+
+.merit-icon {
+  font-size: 40rpx;
+}
+
+.merit-number {
+  font-size: 56rpx;
+  font-weight: bold;
+  color: #FFD700;
+  text-shadow: 0 2rpx 8rpx rgba(255, 215, 0, 0.3);
+}
+
+.merit-label {
+  font-size: 28rpx;
+  color: #8B7E74;
+  margin-left: 8rpx;
+}
+
+.merit-daily {
+  background-color: rgba(232, 115, 58, 0.15);
+  border-radius: 20rpx;
+  padding: 8rpx 20rpx;
+}
+
+.daily-text {
+  font-size: 24rpx;
+  color: #E8733A;
+  font-weight: 500;
+}
+
+.merit-login-hint {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.login-hint-text {
+  font-size: 30rpx;
+  color: #8B7E74;
+}
+
+.login-hint-arrow {
+  font-size: 30rpx;
+  color: #E8733A;
+}
+
+/* 日历 */
 .calendar-section {
   background-color: #ffffff;
   border-radius: 16rpx;
@@ -278,12 +411,12 @@ function formatTime(isoString: string): string {
 }
 
 .day-cell.today .day-text {
-  color: #1890ff;
+  color: #E8733A;
   font-weight: bold;
 }
 
 .day-cell.selected {
-  background-color: #1890ff;
+  background-color: #E8733A;
   border-radius: 8rpx;
 }
 
@@ -299,11 +432,12 @@ function formatTime(isoString: string): string {
 .record-dot {
   width: 8rpx;
   height: 8rpx;
-  background-color: #52c41a;
+  background-color: #E8733A;
   border-radius: 50%;
   margin-top: 4rpx;
 }
 
+/* 记录列表 */
 .records-section {
   background-color: #ffffff;
   border-radius: 16rpx;
@@ -324,7 +458,7 @@ function formatTime(isoString: string): string {
 }
 
 .add-btn {
-  background-color: #1890ff;
+  background-color: #E8733A;
   color: #ffffff;
   border: none;
   border-radius: 50%;
@@ -359,7 +493,7 @@ function formatTime(isoString: string): string {
 }
 
 .record-card {
-  background-color: #f9f9f9;
+  background-color: #FFF8F0;
   border-radius: 12rpx;
   padding: 20rpx;
 }
@@ -372,7 +506,7 @@ function formatTime(isoString: string): string {
 
 .record-type {
   font-size: 24rpx;
-  color: #666666;
+  color: #8B7E74;
 }
 
 .record-status {
@@ -388,8 +522,8 @@ function formatTime(isoString: string): string {
 
 .status-queued,
 .status-uploading {
-  background-color: #e6f7ff;
-  color: #1890ff;
+  background-color: #FFF0E5;
+  color: #E8733A;
 }
 
 .status-synced {
@@ -421,8 +555,20 @@ function formatTime(isoString: string): string {
   border-radius: 8rpx;
 }
 
+.record-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
 .record-time {
   font-size: 24rpx;
   color: #999999;
+}
+
+.record-merit {
+  font-size: 24rpx;
+  color: #FFD700;
+  font-weight: 500;
 }
 </style>

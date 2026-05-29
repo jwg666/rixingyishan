@@ -3,6 +3,7 @@ package handler
 import (
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -170,6 +171,16 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 		return
 	}
 
+	// 检查黑名单
+	if service.TokenBlacklist.Contains(claims.ID) {
+		c.JSON(http.StatusUnauthorized, middleware.Response{
+			Code:    40001,
+			Message: "refreshToken 已被吊销",
+			Data:    nil,
+		})
+		return
+	}
+
 	// 生成新的 access token
 	accessToken, err := service.GenerateAccessToken(claims.UserID, claims.Phone)
 	if err != nil {
@@ -190,5 +201,29 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 		Code:    0,
 		Message: "success",
 		Data:    result,
+	})
+}
+
+// Logout POST /api/auth/logout — 吊销 refresh token
+func (h *AuthHandler) Logout(c *gin.Context) {
+	var req struct {
+		RefreshToken string `json:"refreshToken"`
+	}
+	_ = c.ShouldBindJSON(&req)
+
+	if req.RefreshToken != "" {
+		claims, err := service.ParseToken(req.RefreshToken)
+		if err == nil && claims.ID != "" {
+			expiry := time.Unix(claims.ExpiresAt.Unix(), 0)
+			service.TokenBlacklist.Add(claims.ID, expiry)
+		}
+	}
+
+	c.JSON(http.StatusOK, middleware.Response{
+		Code:    0,
+		Message: "success",
+		Data: gin.H{
+			"message": "已退出登录",
+		},
 	})
 }

@@ -1,9 +1,12 @@
 /**
  * AuthService — 认证服务
  * 提供短信验证码登录、token 管理、登录状态查询
+ * P1: 登录后合并上传、退出调用后端API
  */
 
 import { request } from "./request";
+import { RecordRepository } from "./RecordRepository";
+import { UploadQueueService } from "./UploadQueueService";
 
 const ACCESS_TOKEN_KEY = "accessToken";
 const REFRESH_TOKEN_KEY = "refreshToken";
@@ -62,6 +65,9 @@ export const AuthService = {
     uni.setStorageSync(REFRESH_TOKEN_KEY, data.refreshToken);
     uni.setStorageSync(USER_PHONE_KEY, data.phone);
 
+    // 登录成功后检测是否有未同步记录需要合并
+    await this.mergeLocalRecords();
+
     return data;
   },
 
@@ -83,7 +89,7 @@ export const AuthService = {
       uni.setStorageSync(REFRESH_TOKEN_KEY, res.data.refreshToken);
       return res.data;
     } catch {
-      this.logout();
+      this.logoutLocal();
       return null;
     }
   },
@@ -109,8 +115,26 @@ export const AuthService = {
     return uni.getStorageSync(USER_PHONE_KEY) || "";
   },
 
-  /** 退出登录，清除本地 token */
-  logout(): void {
+  /**
+   * 退出登录 — 调用后端API + 清除本地token + 暂停上传队列
+   */
+  async logout(): Promise<void> {
+    // 调后端退出接口
+    try {
+      await request({
+        url: "/auth/logout",
+        method: "POST",
+      });
+    } catch {
+      // 即使接口失败也继续本地清理
+    }
+
+    // 清除本地 token
+    this.logoutLocal();
+  },
+
+  /** 仅本地清理 token */
+  logoutLocal(): void {
     uni.removeStorageSync(ACCESS_TOKEN_KEY);
     uni.removeStorageSync(REFRESH_TOKEN_KEY);
     uni.removeStorageSync(USER_PHONE_KEY);
@@ -130,5 +154,66 @@ export const AuthService = {
       url: `/pages/login/login${redirectParam}`,
     });
     return false;
+  },
+
+  /**
+   * 登录后合并本地未同步记录
+   * - 检测 needsAccountBind 标记的记录
+   * - 弹窗确认后批量绑定 userId 并入队上传
+   */
+  async mergeLocalRecords(): Promise<void> {
+    const records = RecordRepository.getAll();
+    const unboundRecords = records.filter(
+      (r) => (r as any).needsAccountBind === true || !r.userId
+    );
+
+    if (unboundRecords.length === 0) return;
+
+    // 弹窗确认
+    return new Promise<void>((resolve) => {
+      uni.showModal({
+        title: "合并记录",
+        content: `发现 ${unboundRecords.length} 条未同步记录，是否合并到云端？`,
+        confirmText: "合并",
+        cancelText: "跳过",
+        success: async (res) => {
+          if (res.confirm) {
+            const userId = uni.getStorageSync("userId") || "";
+            for (const record of unboundRecords) {
+              record.userId = userId;
+              delete (record as any).needsAccountBind;
+              record.status = "queued";
+              record.updatedAt = new Date().toISOString();
+              RecordRepository.update(record);
+
+              // 入队上传
+              if (record.media.length > 0) {
+                record.media.forEach((media, index) => {
+                  if (media.localPath) {
+                    UploadQueueService.enqueue(record.id, index, media.localPath);
+                  }
+                });
+              } else {
+                // 无媒体的记录，直接同步元数据
+                try {
+                  await UploadQueueService.syncRecordMetadata(record);
+                  record.status = "synced";
+                  record.updatedAt = new Date().toISOString();
+                  RecordRepository.update(record);
+                } catch {
+                  record.status = "failed";
+                  record.failReason = "元数据同步失败";
+                  record.updatedAt = new Date().toISOString();
+                  RecordRepository.update(record);
+                }
+              }
+            }
+            uni.showToast({ title: "记录已合并", icon: "success" });
+          }
+          resolve();
+        },
+        fail: () => resolve(),
+      });
+    });
   },
 };

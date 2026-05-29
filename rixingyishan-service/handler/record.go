@@ -58,6 +58,7 @@ func (h *RecordHandler) CreateRecord(c *gin.Context) {
 		Data: gin.H{
 			"serverRecordId": record.ID,
 			"syncVersion":    record.SyncVersion,
+			"meritValue":     record.MeritValue,
 			"record":         record,
 		},
 	})

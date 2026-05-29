@@ -25,4 +25,11 @@ onHide(() => {
   console.log("App Hide");
 });
 </script>
-<style></style>
+<style>
+/* 全局暖色调基础样式 */
+page {
+  background-color: #FFF8F0;
+  color: #333333;
+  font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+}
+</style>

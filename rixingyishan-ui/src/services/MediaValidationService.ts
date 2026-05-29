@@ -2,7 +2,6 @@ import type { MediaItem } from "@/types";
 
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
 const MAX_VIDEO_SIZE = 50 * 1024 * 1024;
-const MAX_VIDEO_DURATION = 60000;
 
 const ALLOWED_IMAGE_MIMES = ["image/jpeg", "image/png", "image/webp"];
 const ALLOWED_VIDEO_MIMES = ["video/mp4", "video/quicktime"];
@@ -10,6 +9,18 @@ const ALLOWED_VIDEO_MIMES = ["video/mp4", "video/quicktime"];
 export interface ValidationResult {
   valid: boolean;
   error?: string;
+}
+
+/**
+ * P1-03: 从 storage 读取 settings_video_duration（默认30秒）
+ */
+function getMaxVideoDuration(): number {
+  const saved = uni.getStorageSync("settings_video_duration");
+  if (saved) {
+    const parsed = parseInt(saved, 10);
+    if (parsed > 0 && parsed <= 300) return parsed * 1000;
+  }
+  return 30000; // 默认30秒
 }
 
 export const MediaValidationService = {
@@ -53,10 +64,11 @@ export const MediaValidationService = {
       };
     }
 
-    if (media.durationMs && media.durationMs > MAX_VIDEO_DURATION) {
+    const maxDuration = getMaxVideoDuration();
+    if (media.durationMs && media.durationMs > maxDuration) {
       return {
         valid: false,
-        error: `视频时长超过限制 (${MAX_VIDEO_DURATION / 1000}秒)`,
+        error: `视频时长超过限制 (${maxDuration / 1000}秒)`,
       };
     }
 
