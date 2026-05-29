@@ -5,6 +5,7 @@ export type SyncStatus = "draft" | "queued" | "uploading" | "synced" | "failed";
 export interface MediaItem {
   localPath?: string;
   remoteUrl?: string;
+  objectKey?: string;
   mimeType: string;
   width?: number;
   height?: number;

@@ -23,17 +23,23 @@
 			"style": {
 				"navigationBarTitleText": "设置"
 			}
+		},
+		{
+			"path": "pages/login/login",
+			"style": {
+				"navigationBarTitleText": "登录"
+			}
 		}
 	],
 	"globalStyle": {
 		"navigationBarTextStyle": "black",
 		"navigationBarTitleText": "日行一善",
-		"navigationBarBackgroundColor": "#F8F8F8",
-		"backgroundColor": "#F8F8F8"
+		"navigationBarBackgroundColor": "#FFF8F0",
+		"backgroundColor": "#FFF8F0"
 	},
 	"tabBar": {
 		"color": "#999999",
-		"selectedColor": "#1890ff",
+		"selectedColor": "#E8733A",
 		"borderStyle": "black",
 		"backgroundColor": "#ffffff",
 		"list": [

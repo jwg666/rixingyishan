@@ -172,9 +172,21 @@ async function submitRecord() {
     const now = new Date();
     const dayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
     
+    // P0-05 修复：扫描全部媒体 mimeType，任一包含 "video" 则 type="video"
+    let recordType: "photo" | "video" | "text" = "text";
+    if (formData.media.length > 0) {
+      const hasVideo = formData.media.some((m) => m.mimeType.includes("video"));
+      const hasImage = formData.media.some((m) => m.mimeType.startsWith("image"));
+      if (hasVideo) {
+        recordType = "video";
+      } else if (hasImage) {
+        recordType = "photo";
+      }
+    }
+
     const record: GoodDeedRecord = {
       id: Date.now().toString(36) + Math.random().toString(36).slice(2),
-      type: formData.media.length === 0 ? "text" : formData.media[0].mimeType.startsWith("video") ? "video" : "photo",
+      type: recordType,
       title: formData.title || undefined,
       content: formData.content,
       media: formData.media,
@@ -214,7 +226,7 @@ async function submitRecord() {
 <style scoped>
 .container {
   min-height: 100vh;
-  background-color: #f5f5f5;
+  background-color: #FFF8F0;
   padding: 20rpx;
 }
 
@@ -360,7 +372,7 @@ async function submitRecord() {
 }
 
 .submit-btn {
-  background-color: #1890ff;
+  background-color: #E8733A;
   color: #ffffff;
   border: none;
   border-radius: 12rpx;

@@ -1,9 +1,18 @@
 <script setup lang="ts">
 import { onLaunch, onShow, onHide } from "@dcloudio/uni-app";
 import { UploadQueueService } from "@/services/UploadQueueService";
+import { AuthService } from "@/services/AuthService";
 
 onLaunch(() => {
   console.log("App Launch");
+
+  // 检查 token 有效性（不强制登录）
+  if (AuthService.isLoggedIn()) {
+    console.log("用户已登录:", AuthService.getUserPhone());
+  } else {
+    console.log("用户未登录，可延迟登录");
+  }
+
   UploadQueueService.recoverPendingTasks();
 });
 

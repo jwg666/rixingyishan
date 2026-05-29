@@ -2,6 +2,7 @@ import type { GoodDeedRecord, UploadTask } from "@/types";
 
 const RECORD_STORAGE_KEY = "good_deeds_records";
 const UPLOAD_TASK_STORAGE_KEY = "good_deeds_upload_tasks";
+const TEMP_MEDIA_KEY = "good_deeds_temp_media";
 
 function getRecords(): GoodDeedRecord[] {
   try {
@@ -82,6 +83,13 @@ export const RecordRepository = {
     return getUploadTasks().filter((t) => t.recordId === recordId);
   },
 
+  /**
+   * 按 taskId 获取上传任务（P0-04 修复）
+   */
+  getUploadTaskById(taskId: string): UploadTask | null {
+    return getUploadTasks().find((t) => t.id === taskId) || null;
+  },
+
   insertUploadTask(task: UploadTask): void {
     const tasks = getUploadTasks();
     tasks.push(task);
@@ -100,5 +108,38 @@ export const RecordRepository = {
   clearCompletedUploadTasks(): void {
     const tasks = getUploadTasks().filter((t) => t.status !== "success");
     saveUploadTasks(tasks);
+  },
+
+  /**
+   * 清理上传任务队列（P0-02）— 仅清理已完成与失败的任务，保留正在进行的
+   */
+  clearUploadTasks(): void {
+    const tasks = getUploadTasks().filter(
+      (t) => t.status === "queued" || t.status === "uploading"
+    );
+    saveUploadTasks(tasks);
+  },
+
+  /**
+   * 清理临时媒体缓存（P0-02）
+   */
+  clearTempMedia(): void {
+    try {
+      uni.removeStorageSync(TEMP_MEDIA_KEY);
+    } catch (e) {
+      console.error("Failed to clear temp media", e);
+    }
+  },
+
+  /**
+   * 删除所有本地记录（P0-02）— 危险操作，需强二次确认
+   */
+  clearAllRecords(): void {
+    try {
+      uni.removeStorageSync(RECORD_STORAGE_KEY);
+      uni.removeStorageSync(UPLOAD_TASK_STORAGE_KEY);
+    } catch (e) {
+      console.error("Failed to clear all records", e);
+    }
   },
 };

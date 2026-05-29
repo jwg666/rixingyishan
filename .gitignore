@@ -19,3 +19,11 @@ dist
 *.njsproj
 *.sln
 *.sw?
+
+# Go backend
+rixingyishan-service/rixingyishan-service
+rixingyishan-service/data/*.db
+rixingyishan-service/uploads/
+
+# CodeGraph
+.codegraph/
