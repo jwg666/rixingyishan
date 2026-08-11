@@ -2,10 +2,10 @@
  * 统一请求封装 — 基于 uni.request
  * - 自动附带 Authorization: Bearer <accessToken>
  * - 401 时自动用 refreshToken 刷新，刷新失败跳登录
- * - 基础 URL: http://127.0.0.1:8866/api
+ * - 基础 URL: /rxys/api（nginx 反代到后端 :8866）
  */
 
-const BASE_URL = "http://127.0.0.1:8866/api";
+const BASE_URL = "/rxys/api";
 
 /** 后端统一响应格式 */
 export interface ApiResponse<T = unknown> {
