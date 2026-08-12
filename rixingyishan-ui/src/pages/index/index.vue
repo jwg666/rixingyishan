@@ -69,7 +69,7 @@
         >
           <view class="record-header">
             <text class="record-type">{{ getRecordTypeText(record.type) }}</text>
-            <text class="record-status" :class="'status-' + record.status">
+            <text v-if="record.status !== 'draft'" class="record-status" :class="'status-' + record.status">
               {{ getStatusText(record.status) }}
             </text>
           </view>
@@ -240,7 +240,7 @@ function getRecordTypeText(type: string): string {
   const map: Record<string, string> = {
     photo: "图片",
     video: "视频",
-    text: "文字"
+    text: "功德"
   };
   return map[type] || type;
 }
