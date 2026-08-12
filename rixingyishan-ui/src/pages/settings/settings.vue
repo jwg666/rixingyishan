@@ -344,13 +344,13 @@ function exportData() {
   }
 }
 
-/** 协议入口 (P1-06) — 暂时 href="#" */
+/** 协议入口 (P1-06) — 跳转协议页 */
 function openUserAgreement() {
-  uni.showToast({ title: "用户协议页面待上线", icon: "none" });
+  uni.navigateTo({ url: "/pages/agreement/agreement?type=agreement" });
 }
 
 function openPrivacyPolicy() {
-  uni.showToast({ title: "隐私政策页面待上线", icon: "none" });
+  uni.navigateTo({ url: "/pages/agreement/agreement?type=privacy" });
 }
 </script>
 

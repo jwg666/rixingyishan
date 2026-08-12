@@ -40,6 +40,19 @@
       <button class="login-btn" :disabled="!canLogin || isLogging" @click="doLogin">
         {{ isLogging ? '登录中...' : '登录' }}
       </button>
+
+      <!-- P1-06: 协议勾选 -->
+      <view class="agreement-row" @click="toggleAgree">
+        <view class="checkbox" :class="{ checked: agreed }">
+          <text v-if="agreed" class="check-icon">✓</text>
+        </view>
+        <text class="agreement-text">
+          我已阅读并同意
+          <text class="agreement-link" @click.stop="openAgreement('agreement')">《用户协议》</text>
+          和
+          <text class="agreement-link" @click.stop="openAgreement('privacy')">《隐私政策》</text>
+        </text>
+      </view>
     </view>
 
     <view class="footer">
@@ -58,6 +71,7 @@ const code = ref("");
 const countdown = ref(0);
 const isLogging = ref(false);
 const redirect = ref("");
+const agreed = ref(false);
 
 let countdownTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -71,7 +85,19 @@ onLoad((options) => {
 const isPhoneValid = computed(() => /^1[3-9]\d{9}$/.test(phone.value));
 
 /** 是否可以登录 */
-const canLogin = computed(() => isPhoneValid.value && /^\d{6}$/.test(code.value));
+const canLogin = computed(
+  () => isPhoneValid.value && /^\d{6}$/.test(code.value) && agreed.value
+);
+
+/** 切换协议勾选 */
+function toggleAgree() {
+  agreed.value = !agreed.value;
+}
+
+/** 打开协议/隐私页 */
+function openAgreement(type: "agreement" | "privacy") {
+  uni.navigateTo({ url: `/pages/agreement/agreement?type=${type}` });
+}
 
 /** 发送验证码 */
 async function sendCode() {
@@ -101,6 +127,10 @@ async function sendCode() {
 /** 登录 */
 async function doLogin() {
   if (!canLogin.value || isLogging.value) return;
+  if (!agreed.value) {
+    uni.showToast({ title: "请先阅读并同意用户协议和隐私政策", icon: "none" });
+    return;
+  }
 
   isLogging.value = true;
   try {
@@ -222,6 +252,48 @@ async function doLogin() {
 
 .login-btn[disabled] {
   background-color: #cccccc;
+}
+
+.agreement-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12rpx;
+  margin-top: 28rpx;
+  padding: 0 8rpx;
+}
+
+.checkbox {
+  flex-shrink: 0;
+  width: 32rpx;
+  height: 32rpx;
+  border: 2rpx solid #cccccc;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 2rpx;
+  background-color: #ffffff;
+}
+
+.checkbox.checked {
+  background-color: #E8733A;
+  border-color: #E8733A;
+}
+
+.check-icon {
+  color: #ffffff;
+  font-size: 22rpx;
+  line-height: 1;
+}
+
+.agreement-text {
+  font-size: 24rpx;
+  color: #999999;
+  line-height: 1.6;
+}
+
+.agreement-link {
+  color: #E8733A;
 }
 
 .footer {

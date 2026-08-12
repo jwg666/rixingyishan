@@ -120,7 +120,7 @@ func buildObjectKey(filename string) string {
 		ext = ".bin"
 	}
 	uid := uuid.New().String()
-	objectKey := fmt.Sprintf("uploads/%s/%s/%s/%s%s",
+	objectKey := fmt.Sprintf("uploads/%s/%s/%s/%s",
 		now.Format("2006"),
 		now.Format("01"),
 		now.Format("02"),

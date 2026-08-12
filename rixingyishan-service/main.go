@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"net/http"
 	"os"
 	"time"
 
@@ -70,6 +71,19 @@ func main() {
 	// API 路由组
 	api := r.Group("/api")
 	{
+		// 健康检查（无需认证）
+		api.GET("/health", func(c *gin.Context) {
+			c.JSON(http.StatusOK, middleware.Response{
+				Code:    0,
+				Message: "success",
+				Data: gin.H{
+					"status":  "ok",
+					"service": "rixingyishan-service",
+					"time":    time.Now().Format(time.RFC3339),
+				},
+			})
+		})
+
 		// Auth 路由（无需认证）
 		auth := api.Group("/auth")
 		{
