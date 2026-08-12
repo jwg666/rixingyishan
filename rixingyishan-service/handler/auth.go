@@ -2,6 +2,7 @@ package handler
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 
@@ -48,8 +49,23 @@ func (h *AuthHandler) SendSMS(c *gin.Context) {
 		return
 	}
 
-	// Mock: 打印验证码
-	fmt.Printf("[SMS Mock] 发送验证码 %s 到手机 %s\n", config.MockSMSCode, req.Phone)
+	if config.SMSProvider == "aliyun" {
+		// 真实发送：生成随机验证码并通过阿里云下发
+		code := service.GenerateSMSCode(req.Phone)
+		if err := service.SendAliyunSMS(req.Phone, code); err != nil {
+			log.Printf("[SMS] 阿里云发送失败 phone=%s err=%v", req.Phone, err)
+			c.JSON(http.StatusInternalServerError, middleware.Response{
+				Code:    40001,
+				Message: "验证码发送失败，请稍后重试",
+				Data:    nil,
+			})
+			return
+		}
+	} else {
+		// Mock 模式：固定验证码，仅打印
+		service.StoreSMSCode(req.Phone, config.MockSMSCode)
+		fmt.Printf("[SMS Mock] 发送验证码 %s 到手机 %s\n", config.MockSMSCode, req.Phone)
+	}
 
 	c.JSON(http.StatusOK, middleware.Response{
 		Code:    0,
@@ -75,11 +91,11 @@ func (h *AuthHandler) VerifySMS(c *gin.Context) {
 		return
 	}
 
-	// Mock: 验证码校验
-	if req.Code != config.MockSMSCode {
+	// 验证码校验（TTL + 尝试次数限制，成功后自动销毁）
+	if ok, reason := service.CheckSMSCode(req.Phone, req.Code); !ok {
 		c.JSON(http.StatusBadRequest, middleware.Response{
 			Code:    40001,
-			Message: "验证码错误",
+			Message: reason,
 			Data:    nil,
 		})
 		return
