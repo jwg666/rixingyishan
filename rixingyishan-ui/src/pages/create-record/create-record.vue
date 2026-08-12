@@ -1,5 +1,11 @@
 <template>
   <view class="container">
+    <!-- 记录归属日期提示 -->
+    <view class="date-banner" :class="{ 'date-banner-other': !isToday }">
+      <text class="date-banner-icon">📅</text>
+      <text class="date-banner-text">{{ isToday ? "记录日期：今天" : "记录日期：" + targetDayKey }}</text>
+    </view>
+
     <view class="form-section">
       <view class="input-group">
         <text class="label">标题（可选）</text>
@@ -102,6 +108,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from "vue";
+import { onLoad } from "@dcloudio/uni-app";
 import { MediaCaptureService } from "@/services/MediaCaptureService";
 import { MediaValidationService } from "@/services/MediaValidationService";
 import { RecordRepository } from "@/services/RecordRepository";
@@ -132,6 +139,22 @@ const matchHint = ref("");
 
 // 防抖定时器
 let matchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+// 记录归属日期：从首页日历选中日传入，缺省为今天
+function todayKey(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+const targetDayKey = ref(todayKey());
+const isToday = computed(() => targetDayKey.value === todayKey());
+
+onLoad((options) => {
+  const dayKey = options?.dayKey;
+  // 校验 YYYY-MM-DD 格式，防止脏参数
+  if (dayKey && /^\d{4}-\d{2}-\d{2}$/.test(dayKey)) {
+    targetDayKey.value = dayKey;
+  }
+});
 
 const currentMeritValue = computed(() => {
   if (!selectedTagId.value) return 0;
@@ -267,7 +290,8 @@ async function submitRecord() {
 
   try {
     const now = new Date();
-    const dayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    // 使用日历选中日期（onLoad 已接收），而非当前日期
+    const dayKey = targetDayKey.value;
     
     // P0-05 修复：扫描全部媒体 mimeType，任一包含 "video" 则 type="video"
     let recordType: "photo" | "video" | "text" = "text";
@@ -351,6 +375,30 @@ function showSmartLoginTip() {
   background-color: #FFF8F0;
   padding: 20rpx;
   padding-bottom: 160rpx;
+}
+
+.date-banner {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  background-color: #FFF0E5;
+  border-radius: 12rpx;
+  padding: 16rpx 24rpx;
+  margin-bottom: 20rpx;
+}
+
+.date-banner-other {
+  background-color: #FFE8D6;
+  border: 1rpx solid #E8733A;
+}
+
+.date-banner-icon {
+  font-size: 28rpx;
+}
+
+.date-banner-text {
+  font-size: 26rpx;
+  color: #8B5A2B;
 }
 
 .form-section {

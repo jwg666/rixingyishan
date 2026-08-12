@@ -219,7 +219,8 @@ function loadRecordsForSelectedDay() {
 }
 
 function goToCreate() {
-  uni.navigateTo({ url: "/pages/create-record/create-record" });
+  // 把日历选中的日期传给新建页，否则新建页默认记为今天
+  uni.navigateTo({ url: `/pages/create-record/create-record?dayKey=${selectedDayKey.value}` });
 }
 
 function goToDetail(id: string) {
