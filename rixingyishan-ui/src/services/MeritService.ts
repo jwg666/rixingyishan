@@ -86,7 +86,7 @@ export const MeritService = {
   async getProfile(): Promise<UserProfile | null> {
     try {
       const res = await request<UserProfile>({
-        url: "/user/profile",
+        url: "/users/profile",
         method: "GET",
       });
       return res.data;
@@ -100,8 +100,8 @@ export const MeritService = {
    */
   async updateNickname(nickname: string): Promise<void> {
     await request({
-      url: "/user/profile",
-      method: "PUT",
+      url: "/users/profile",
+      method: "PATCH",
       data: { nickname },
     });
   },
@@ -111,8 +111,8 @@ export const MeritService = {
    */
   async updateShowInRanking(showInRanking: boolean): Promise<void> {
     await request({
-      url: "/user/profile",
-      method: "PUT",
+      url: "/users/profile",
+      method: "PATCH",
       data: { showInRanking },
     });
   },

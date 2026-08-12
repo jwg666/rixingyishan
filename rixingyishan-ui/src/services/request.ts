@@ -15,7 +15,7 @@ export interface ApiResponse<T = unknown> {
 }
 
 /** 请求方法类型 */
-type HttpMethod = "GET" | "POST" | "PUT" | "DELETE";
+type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
 /** 请求选项 */
 export interface RequestOptions {

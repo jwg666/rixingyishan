@@ -107,6 +107,8 @@
         <text class="modal-title">修改昵称</text>
         <input
           class="modal-input"
+          type="text"
+          inputmode="text"
           v-model="newNickname"
           placeholder="输入新昵称"
           maxlength="20"
