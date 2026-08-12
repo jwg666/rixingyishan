@@ -21,7 +21,8 @@ export interface SmsSendResponse {
 export interface SmsVerifyResponse {
   accessToken: string;
   refreshToken: string;
-  userId: string;
+  expiresIn: number;
+  userId: number;
   phone: string;
 }
 
@@ -59,11 +60,12 @@ export const AuthService = {
       skipAuth: true,
     });
 
-    // 保存 token 与手机号
+    // 保存 token 与用户信息
     const data = res.data;
     uni.setStorageSync(ACCESS_TOKEN_KEY, data.accessToken);
     uni.setStorageSync(REFRESH_TOKEN_KEY, data.refreshToken);
     uni.setStorageSync(USER_PHONE_KEY, data.phone);
+    uni.setStorageSync("userId", data.userId);
 
     // 登录成功后检测是否有未同步记录需要合并
     await this.mergeLocalRecords();

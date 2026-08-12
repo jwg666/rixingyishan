@@ -145,6 +145,8 @@ func (h *AuthHandler) VerifySMS(c *gin.Context) {
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		ExpiresIn:    int64(config.AccessTokenExpire.Seconds()),
+		UserID:       user.ID,
+		Phone:        user.Phone,
 	}
 
 	c.JSON(http.StatusOK, middleware.Response{

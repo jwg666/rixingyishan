@@ -153,6 +153,8 @@ type VerifyResult struct {
 	AccessToken  string `json:"accessToken"`
 	RefreshToken string `json:"refreshToken"`
 	ExpiresIn    int64  `json:"expiresIn"`
+	UserID       uint   `json:"userId"`
+	Phone        string `json:"phone"`
 }
 
 // Notice: we need time import for potential use
