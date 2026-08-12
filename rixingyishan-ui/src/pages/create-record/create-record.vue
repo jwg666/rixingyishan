@@ -8,16 +8,6 @@
 
     <view class="form-section">
       <view class="input-group">
-        <text class="label">标题（可选）</text>
-        <input
-          class="input"
-          v-model="formData.title"
-          placeholder="输入标题"
-          maxlength="50"
-        />
-      </view>
-
-      <view class="input-group">
         <text class="label">内容 *</text>
         <textarea
           class="textarea"
@@ -305,10 +295,14 @@ async function submitRecord() {
       }
     }
 
+    // 标题：自动从内容前 15 个字生成
+    const contentTrim = formData.content.trim();
+    const autoTitle = contentTrim.length > 15 ? contentTrim.slice(0, 15) + "…" : contentTrim;
+
     const record: GoodDeedRecord = {
       id: Date.now().toString(36) + Math.random().toString(36).slice(2),
       type: recordType,
-      title: formData.title || undefined,
+      title: autoTitle,
       content: formData.content,
       media: formData.media,
       dayKey,

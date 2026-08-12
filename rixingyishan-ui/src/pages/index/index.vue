@@ -73,7 +73,8 @@
               {{ getStatusText(record.status) }}
             </text>
           </view>
-          <text class="record-content">{{ record.content || "无内容" }}</text>
+          <text class="record-title">{{ record.title || record.content || "无内容" }}</text>
+          <text v-if="record.title && record.content !== record.title" class="record-content">{{ record.content }}</text>
           <view v-if="record.media.length > 0" class="record-media-preview">
             <image
               v-for="(media, index) in record.media.slice(0, 3)"
@@ -537,11 +538,22 @@ export default { name: "IndexPage" };
   color: #ff4d4f;
 }
 
+.record-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #3A2A1A;
+  margin-bottom: 8rpx;
+  display: block;
+}
+
 .record-content {
-  font-size: 28rpx;
-  color: #333333;
+  font-size: 26rpx;
+  color: #8B7E74;
   margin-bottom: 12rpx;
   display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .record-media-preview {
