@@ -9,5 +9,6 @@
 - PRD（前端）：`docs/prd/2026-04-30-good-deeds-prd-ui.md`
 - PRD（后端）：`docs/prd/2026-04-30-good-deeds-prd-service.md`
 - 实现差距清单（前后端拆分）：`docs/prd/2026-04-30-implementation-gap.md`
+- PRD（登录+功德体系）：`docs/prd/2026-05-14-login-merit-system.md`
 
 以上文档共同构成当前阶段的落地基线，可直接进入工程初始化与模块开发。

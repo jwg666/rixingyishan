@@ -1,5 +1,17 @@
 import type { PlatformMediaAdapter } from "./types";
 
+/**
+ * P1-03: 从 storage 读取 settings_video_duration 作为录像时长限制
+ */
+function getVideoMaxDuration(): number {
+  const saved = uni.getStorageSync("settings_video_duration");
+  if (saved) {
+    const parsed = parseInt(saved, 10);
+    if (parsed > 0 && parsed <= 300) return parsed;
+  }
+  return 30; // 默认30秒
+}
+
 export const uniAppMediaAdapter: PlatformMediaAdapter = {
   async canTakePhoto(): Promise<boolean> {
     return new Promise((resolve) => {
@@ -43,10 +55,11 @@ export const uniAppMediaAdapter: PlatformMediaAdapter = {
     durationMs?: number;
     sizeBytes?: number;
   }> {
+    const maxDuration = getVideoMaxDuration();
     return new Promise((resolve, reject) => {
       uni.chooseVideo({
         sourceType: ["camera"],
-        maxDuration: 30,
+        maxDuration,
         camera: "back",
         success: (res) => {
           resolve({

@@ -18,6 +18,11 @@
       <text class="content-text">{{ record.content }}</text>
     </view>
 
+    <!-- 功德信息 -->
+    <view v-if="record.meritValue" class="merit-section">
+      <text class="merit-text">本次功德 +{{ record.meritValue }} ✨</text>
+    </view>
+
     <view v-if="record.tags && record.tags.length > 0" class="tags-section">
       <view v-for="(tag, index) in record.tags" :key="index" class="tag">
         <text class="tag-text">#{{ tag }}</text>
@@ -39,12 +44,20 @@
             class="media-image"
             mode="aspectFill"
           />
-          <view v-else class="media-video">
+          <!-- P1-04: 视频显示缩略图 + 播放按钮，点击全屏播放 -->
+          <view v-else class="media-video-thumb">
             <video
+              :id="'detail-video-' + index"
               :src="media.remoteUrl || media.localPath || ''"
-              class="video-player"
-              controls
+              class="video-player-hidden"
+              :show-fullscreen-btn="true"
+              :show-play-btn="false"
+              :controls="false"
+              object-fit="cover"
             />
+            <view class="video-play-overlay">
+              <text class="video-play-icon">▶</text>
+            </view>
           </view>
           <text v-if="media.remoteUrl" class="media-synced">已上传</text>
           <text v-else class="media-pending">未上传</text>
@@ -93,18 +106,37 @@ function loadRecord() {
   }
 }
 
+/**
+ * P1-04: 媒体预览
+ * - 图片: uni.previewImage
+ * - 视频: uni.createVideoContext 全屏播放
+ */
 function previewMedia(index: number) {
   if (!record.value) return;
   const media = record.value.media[index];
-  const urls = record.value.media
-    .map((m) => m.remoteUrl || m.localPath)
-    .filter(Boolean) as string[];
-  
-  if (urls.length > 0) {
-    uni.previewImage({
-      urls,
-      current: urls[index]
-    });
+
+  if (media.mimeType.includes("video")) {
+    // P1-04: 视频使用 createVideoContext 全屏播放
+    const videoId = "detail-video-" + index;
+    const videoContext = uni.createVideoContext(videoId);
+    if (videoContext) {
+      videoContext.requestFullScreen({ direction: 0 });
+      videoContext.play();
+    }
+  } else {
+    // 图片：使用 previewImage
+    const urls = record.value.media
+      .filter((m) => m.mimeType.startsWith("image"))
+      .map((m) => m.remoteUrl || m.localPath)
+      .filter(Boolean) as string[];
+
+    if (urls.length > 0) {
+      const current = media.remoteUrl || media.localPath || "";
+      uni.previewImage({
+        urls,
+        current,
+      });
+    }
   }
 }
 
@@ -167,7 +199,7 @@ function formatFullTime(isoString: string): string {
 <style scoped>
 .container {
   min-height: 100vh;
-  background-color: #f5f5f5;
+  background-color: #FFF8F0;
   padding: 20rpx;
 }
 
@@ -187,7 +219,7 @@ function formatFullTime(isoString: string): string {
 
 .record-type {
   font-size: 28rpx;
-  color: #666666;
+  color: #8B7E74;
 }
 
 .record-status {
@@ -203,8 +235,8 @@ function formatFullTime(isoString: string): string {
 
 .status-queued,
 .status-uploading {
-  background-color: #e6f7ff;
-  color: #1890ff;
+  background-color: #FFF0E5;
+  color: #E8733A;
 }
 
 .status-synced {
@@ -233,7 +265,7 @@ function formatFullTime(isoString: string): string {
 
 .record-location {
   font-size: 24rpx;
-  color: #1890ff;
+  color: #E8733A;
   margin-top: 8rpx;
   display: block;
 }
@@ -251,6 +283,21 @@ function formatFullTime(isoString: string): string {
   line-height: 1.6;
 }
 
+/* 功德信息 */
+.merit-section {
+  background: linear-gradient(135deg, #FFF0E5 0%, #FFE4CC 100%);
+  border-radius: 16rpx;
+  padding: 20rpx 24rpx;
+  margin-bottom: 20rpx;
+  text-align: center;
+}
+
+.merit-text {
+  font-size: 32rpx;
+  color: #FFD700;
+  font-weight: bold;
+}
+
 .tags-section {
   background-color: #ffffff;
   border-radius: 16rpx;
@@ -262,14 +309,14 @@ function formatFullTime(isoString: string): string {
 }
 
 .tag {
-  background-color: #f0f0f0;
+  background-color: #FFF0E5;
   border-radius: 8rpx;
   padding: 8rpx 16rpx;
 }
 
 .tag-text {
   font-size: 24rpx;
-  color: #666666;
+  color: #E8733A;
 }
 
 .media-section {
@@ -303,14 +350,39 @@ function formatFullTime(isoString: string): string {
   border-radius: 12rpx;
 }
 
-.media-video {
-  width: 100%;
-}
-
-.video-player {
+/* P1-04: 视频缩略图样式 */
+.media-video-thumb {
   width: 100%;
   height: 400rpx;
   border-radius: 12rpx;
+  position: relative;
+  overflow: hidden;
+  background-color: #000000;
+}
+
+.video-player-hidden {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.video-play-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(0, 0, 0, 0.3);
+}
+
+.video-play-icon {
+  font-size: 80rpx;
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .media-synced {
