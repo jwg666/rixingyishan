@@ -105,6 +105,7 @@ import { RecordRepository } from "@/services/RecordRepository";
 import { UploadQueueService } from "@/services/UploadQueueService";
 import { MeritService } from "@/services/MeritService";
 import { AuthService } from "@/services/AuthService";
+import { request } from "@/services/request";
 import type { GoodDeedRecord, MediaItem, MeritTag } from "@/types";
 
 const formData = reactive<{
@@ -332,8 +333,12 @@ async function submitRecord() {
       });
     }
 
-    uni.showToast({ title: "保存成功", icon: "success" });
+    // 登录状态下同步到后端（纯文本记录不走上传队列，需手动同步）
+    if (AuthService.isLoggedIn() && record.meritValue) {
+      syncToServer(record);
+    }
 
+    uni.showToast({ title: "保存成功", icon: "success" });
     // 首次创建记录智能引导提示
     showSmartLoginTip();
     
@@ -344,6 +349,38 @@ async function submitRecord() {
     uni.showToast({ title: "保存失败", icon: "none" });
   } finally {
     isSubmitting.value = false;
+  }
+}
+
+/** 同步记录到后端（登录状态下） */
+async function syncToServer(record: GoodDeedRecord) {
+  try {
+    // 从标签列表中找到标签名
+    const tag = meritTags.value.find((t) => t.id === record.meritTagId);
+    await request({
+      url: "/records",
+      method: "POST",
+      data: {
+        type: record.type,
+        content: record.content,
+        tag: tag?.name || "其他善行",
+        meritValue: record.meritValue || 0,
+        recordDate: record.dayKey,
+        media: record.media.map((m) => ({
+          remoteUrl: m.remoteUrl,
+          objectKey: m.objectKey,
+          mimeType: m.mimeType,
+          size: m.sizeBytes || 0,
+        })),
+      },
+    });
+    // 同步成功，更新本地状态
+    record.status = "synced";
+    record.updatedAt = new Date().toISOString();
+    RecordRepository.update(record);
+  } catch (err) {
+    // 同步失败不影响本地保存，记录保持 draft/queued 状态
+    console.error("同步记录到后端失败:", err);
   }
 }
 

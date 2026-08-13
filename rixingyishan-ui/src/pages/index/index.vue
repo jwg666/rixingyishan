@@ -2,7 +2,7 @@
   <view class="container">
     <!-- 功德展示区 -->
     <view class="merit-card" @click="goToRanking">
-      <view v-if="isLoggedIn" class="merit-content">
+      <view class="merit-content">
         <view class="merit-main">
           <text class="merit-icon">✨</text>
           <text class="merit-number">{{ totalMerit }}</text>
@@ -12,10 +12,8 @@
           <text class="daily-text">今日 +{{ dailyMerit }}</text>
         </view>
       </view>
-      <view v-else class="merit-login-hint" @click.stop="goToLogin">
-        <text class="merit-icon">✨</text>
-        <text class="login-hint-text">登录后查看功德</text>
-        <text class="login-hint-arrow">→</text>
+      <view v-if="!isLoggedIn" class="merit-login-hint" @click.stop="goToLogin">
+        <text class="login-hint-text">登录后可云同步功德 →</text>
       </view>
     </view>
 
@@ -179,16 +177,37 @@ function refreshAuthState() {
 }
 
 async function refreshMeritData() {
+  // 先用本地记录计算兜底值（即时显示）
+  const localTotal = computeLocalTotalMerit();
+  const localDaily = computeLocalDailyMerit();
+  totalMerit.value = localTotal;
+  dailyMerit.value = localDaily;
+
   if (!AuthService.isLoggedIn()) return;
   try {
     const merit = await MeritService.getUserMerit();
     if (merit) {
-      totalMerit.value = merit.totalMerit;
-      dailyMerit.value = merit.dailyMerit;
+      // 后端值优先（更权威），但取较大值防止本地领先于服务端
+      totalMerit.value = Math.max(merit.totalMerit, localTotal);
+      dailyMerit.value = Math.max(merit.dailyMerit, localDaily);
     }
   } catch {
-    // 静默失败
+    // 已用本地兜底，静默
   }
+}
+
+/** 从本地记录计算总功德 */
+function computeLocalTotalMerit(): number {
+  const records = RecordRepository.getAll();
+  return records.reduce((sum, r) => sum + (r.meritValue || 0), 0);
+}
+
+/** 从本地记录计算今日功德 */
+function computeLocalDailyMerit(): number {
+  const today = new Date();
+  const todayKey = getDayKey(today);
+  const records = RecordRepository.getByDayKey(todayKey);
+  return records.reduce((sum, r) => sum + (r.meritValue || 0), 0);
 }
 
 function getDayKey(date: Date): string {
