@@ -60,7 +60,7 @@ export const MeritService = {
   async getUserMerit(): Promise<UserMerit | null> {
     try {
       const res = await request<UserMerit>({
-        url: "/merit/me",
+        url: "/merit/my",
         method: "GET",
       });
       return res.data;
