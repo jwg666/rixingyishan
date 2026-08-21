@@ -27,3 +27,6 @@ rixingyishan-service/uploads/
 
 # CodeGraph
 .codegraph/
+
+# Superpowers brainstorm sessions
+.superpowers/
