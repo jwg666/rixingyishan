@@ -1,5 +1,11 @@
 {
   "src": [
-    "pages/Index"
+    "pages/Index",
+    "pages/Login",
+    "pages/Agreement",
+    "pages/CreateRecord",
+    "pages/RecordDetail",
+    "pages/Ranking",
+    "pages/Settings"
   ]
 }
