@@ -1,6 +1,7 @@
 import { RecordRepository } from './RecordRepository';
 import { RecordApiService, mapRemoteToLocal, buildCreatePayload } from './RecordApiService';
 import { AuthService } from './AuthService';
+import { UploadQueueService } from './UploadQueueService';
 import { mergeDayRecords } from './SyncMergeCore';
 import { GoodDeedRecord } from '../model/Types';
 
@@ -68,10 +69,11 @@ export class SyncMergeService {
         continue;
       }
       if (rec.media.length > 0) {
-        // 带媒体记录：由上传队列完成媒体上传后再推元数据（Task 8 接入）
+        // 带媒体记录：入队上传，完成后由上传队列推送元数据
         rec.status = 'queued';
         rec.updatedAt = new Date().toISOString();
         RecordRepository.update(rec);
+        SyncMergeService.enqueueRecordMedia(rec);
         pushed++;
         continue;
       }
@@ -136,6 +138,7 @@ export class SyncMergeService {
       if (rec.media.length > 0) {
         rec.status = 'queued';
         rec.updatedAt = new Date().toISOString();
+        SyncMergeService.enqueueRecordMedia(rec);
         continue;
       }
       try {
@@ -158,6 +161,17 @@ export class SyncMergeService {
     }
     if (changed) {
       RecordRepository.replaceAll(records);
+    }
+    UploadQueueService.resume();
+  }
+
+  /** 为带本地媒体的记录补齐上传任务（去重） */
+  private static enqueueRecordMedia(rec: GoodDeedRecord): void {
+    for (let i = 0; i < rec.media.length; i++) {
+      const m = rec.media[i];
+      if (m.localPath && !m.remoteUrl && !RecordRepository.hasActiveUploadTask(rec.id, i)) {
+        UploadQueueService.enqueue(rec.id, i, m.localPath);
+      }
     }
   }
 

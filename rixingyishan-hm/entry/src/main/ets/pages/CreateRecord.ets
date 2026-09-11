@@ -4,6 +4,7 @@ import { MediaCaptureService } from '../services/MediaCaptureService';
 import { MediaValidationService, ValidationResult } from '../services/MediaValidationService';
 import { RecordRepository } from '../services/RecordRepository';
 import { RecordApiService } from '../services/RecordApiService';
+import { UploadQueueService } from '../services/UploadQueueService';
 import { MeritService } from '../services/MeritService';
 import { AuthService } from '../services/AuthService';
 import { KvStore } from '../services/KvStore';
@@ -216,9 +217,15 @@ struct CreateRecord {
       RecordRepository.insert(record);
 
       if (record.media.length > 0) {
-        // 带媒体：置 queued，由上传队列完成媒体上传后推送元数据（Task 8 接管入队）
+        // 带媒体：置 queued 并逐个入队上传，全部媒体成功后由队列推送元数据
         record.status = 'queued';
         RecordRepository.update(record);
+        for (let i = 0; i < record.media.length; i++) {
+          const m = record.media[i];
+          if (m.localPath) {
+            UploadQueueService.enqueue(record.id, i, m.localPath);
+          }
+        }
       } else if (AuthService.isLoggedIn()) {
         // 纯文本 + 已登录：直接同步
         try {

@@ -1,6 +1,7 @@
 import { router, promptAction } from '@kit.ArkUI';
 import { RecordRepository } from '../services/RecordRepository';
 import { RecordApiService } from '../services/RecordApiService';
+import { UploadQueueService } from '../services/UploadQueueService';
 import { GoodDeedRecord, MediaItem } from '../model/Types';
 import { Theme } from '../common/Theme';
 import { recordTypeTextDetail, statusText, statusBgColor, statusFgColor, formatFullTime, errorMessage } from '../common/Utils';
@@ -51,10 +52,8 @@ struct RecordDetail {
       return;
     }
     if (rec.media.length > 0) {
-      rec.status = 'queued';
-      rec.updatedAt = new Date().toISOString();
-      RecordRepository.update(rec);
-      this.record = rec;
+      UploadQueueService.retryRecordTasks(rec.id);
+      this.record = RecordRepository.getById(rec.id);
       promptAction.showToast({ message: '已重新排队上传', duration: 2000 });
       return;
     }

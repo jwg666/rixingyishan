@@ -1,5 +1,6 @@
 import { HttpClient } from './HttpClient';
 import { RecordRepository } from './RecordRepository';
+import { UploadQueueService } from './UploadQueueService';
 import { KvStore } from './KvStore';
 import { Constants } from '../common/Constants';
 import { GoodDeedRecord } from '../model/Types';
@@ -72,9 +73,10 @@ export class AuthService {
   }
 
   /**
-   * 退出登录 — 调后端（尽力而为）+ 未同步记录标记 needsAccountBind + 清会话
+   * 退出登录 — 暂停上传队列 + 调后端（尽力而为）+ 未同步记录标记 needsAccountBind + 清会话
    */
   static async logout(): Promise<void> {
+    UploadQueueService.pause();
     try {
       await HttpClient.post('/auth/logout', null);
     } catch (e) {
