@@ -36,6 +36,11 @@ export class HttpClient {
     return HttpClient.request<T>(opts);
   }
 
+  static async put<T>(url: string, data: object | null): Promise<ApiResponse<T>> {
+    const opts: HttpOptions = { url: url, method: 'PUT', data: data };
+    return HttpClient.request<T>(opts);
+  }
+
   static async del<T>(url: string): Promise<ApiResponse<T>> {
     const opts: HttpOptions = { url: url, method: 'DELETE' };
     return HttpClient.request<T>(opts);
@@ -120,7 +125,7 @@ export class HttpClient {
       }
       throw new Error((body && body.message) || '请求失败');
     }
-    throw new Error((body && body.message) || `请求失败 (${statusCode})`);
+    throw new HttpApiError(statusCode, body, (body && body.message) || `请求失败 (${statusCode})`);
   }
 
   private static toRequestMethod(m: string): http.RequestMethod {
@@ -188,5 +193,18 @@ interface TokenPair {
 class AuthError extends Error {
   constructor() {
     super('未授权');
+  }
+}
+
+/** 携带 HTTP 状态码与响应体的错误（如 LWW 更新 409 冲突需读取服务端当前记录） */
+export class HttpApiError extends Error {
+  readonly status: number;
+  /** ApiResponse<T> 原始响应体，调用方按需断言 */
+  readonly body: Object | null;
+
+  constructor(status: number, body: Object | null, message: string) {
+    super(message);
+    this.status = status;
+    this.body = body;
   }
 }

@@ -6,7 +6,7 @@ import { KvStore } from './KvStore';
 import { Constants } from '../common/Constants';
 import { UploadTask } from '../model/Types';
 import { generateId, sleep } from '../common/Utils';
-import { RecordApiService, buildCreatePayload } from './RecordApiService';
+import { RecordApiService, buildCreatePayload, buildUpdatePayload } from './RecordApiService';
 
 /** POST /upload/policy 响应 data */
 interface UploadPolicyData {
@@ -19,7 +19,7 @@ interface UploadPolicyData {
  * UploadQueueService — 媒体上传流水线（对齐 H5 UploadQueueService + 设计规格 §4.3）
  * 1) POST /upload/policy → uploadUrl/objectKey/remoteUrl
  * 2) multipart 上传二进制 → 回写 media.remoteUrl/objectKey
- * 3) 该记录全部媒体成功 → POST /records 元数据 → synced
+ * 3) 该记录全部媒体成功 → POST /records（已有服务端副本则 PUT）元数据 → synced
  * 重试 3 次（2s/5s/10s），并发 1，支持仅 Wi-Fi 开关、暂停/恢复、回前台恢复。
  */
 export class UploadQueueService {
@@ -205,9 +205,15 @@ export class UploadQueueService {
         remoteFileName: filename,
         contentType: media.mimeType
       };
+      // 上传接口已加鉴权：token 在请求前现取（policy 阶段若触发刷新，这里能拿到新 token）
+      const headers: Record<string, string> = { 'Content-Type': 'multipart/form-data' };
+      const token = KvStore.getString(Constants.KEY_ACCESS_TOKEN);
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
       const options: http.HttpRequestOptions = {
         method: http.RequestMethod.POST,
-        header: { 'Content-Type': 'multipart/form-data' },
+        header: headers,
         multiFormDataList: [formData],
         expectDataType: http.HttpDataType.STRING,
         connectTimeout: 15000,
@@ -245,7 +251,11 @@ export class UploadQueueService {
       return;
     }
     try {
-      const resp = await RecordApiService.create(buildCreatePayload(record));
+      // 已有服务端副本（重复入队等场景）走 LWW 更新，避免重复创建
+      const serverId = record.serverRecordId;
+      const resp = (serverId !== undefined && serverId !== '')
+        ? await RecordApiService.update(serverId, buildUpdatePayload(record))
+        : await RecordApiService.create(buildCreatePayload(record));
       record.serverRecordId = String(resp.data.serverRecordId);
       record.syncVersion = resp.data.syncVersion || 1;
       record.serverUpdatedAt = resp.data.record && resp.data.record.updatedAt

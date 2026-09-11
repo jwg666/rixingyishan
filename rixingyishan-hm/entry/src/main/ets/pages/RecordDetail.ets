@@ -1,6 +1,6 @@
 import { router, promptAction } from '@kit.ArkUI';
 import { RecordRepository } from '../services/RecordRepository';
-import { RecordApiService } from '../services/RecordApiService';
+import { RecordApiService, buildUpdatePayload } from '../services/RecordApiService';
 import { UploadQueueService } from '../services/UploadQueueService';
 import { GoodDeedRecord, MediaItem } from '../model/Types';
 import { Theme } from '../common/Theme';
@@ -58,14 +58,18 @@ struct RecordDetail {
       return;
     }
     try {
-      const resp = await RecordApiService.create({
-        type: rec.type,
-        content: rec.content,
-        tag: rec.tags && rec.tags.length > 0 ? rec.tags[0] : '其他善行',
-        meritValue: rec.meritValue || 0,
-        recordDate: rec.dayKey,
-        media: []
-      });
+      // 已有服务端副本走 LWW 更新（避免重复创建），否则首次推送 create
+      const serverId = rec.serverRecordId;
+      const resp = (serverId !== undefined && serverId !== '')
+        ? await RecordApiService.update(serverId, buildUpdatePayload(rec))
+        : await RecordApiService.create({
+          type: rec.type,
+          content: rec.content,
+          tag: rec.tags && rec.tags.length > 0 ? rec.tags[0] : '其他善行',
+          meritValue: rec.meritValue || 0,
+          recordDate: rec.dayKey,
+          media: []
+        });
       rec.serverRecordId = String(resp.data.serverRecordId);
       rec.syncVersion = resp.data.syncVersion || 1;
       rec.serverUpdatedAt = resp.data.record && resp.data.record.updatedAt

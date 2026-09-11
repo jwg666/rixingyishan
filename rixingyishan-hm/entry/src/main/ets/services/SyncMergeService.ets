@@ -1,9 +1,17 @@
 import { RecordRepository } from './RecordRepository';
-import { RecordApiService, mapRemoteToLocal, buildCreatePayload } from './RecordApiService';
+import { RecordApiService, mapRemoteToLocal, buildCreatePayload, buildUpdatePayload } from './RecordApiService';
+import { HttpApiError } from './HttpClient';
 import { AuthService } from './AuthService';
 import { UploadQueueService } from './UploadQueueService';
 import { mergeDayRecords } from './SyncMergeCore';
-import { GoodDeedRecord } from '../model/Types';
+import { ApiResponse, GoodDeedRecord, RemoteRecord } from '../model/Types';
+
+/** PUT /records/:id 版本冲突响应 data */
+interface ConflictData {
+  serverRecordId: number;
+  syncVersion: number;
+  record: RemoteRecord;
+}
 
 export interface SyncHomeResult {
   /** 合并后当日记录 */
@@ -65,7 +73,37 @@ export class SyncMergeService {
         continue;
       }
       if (rec.serverRecordId !== undefined && rec.serverRecordId !== '') {
-        // 已有服务端副本且本地胜出：后端暂无更新接口，跳过避免重复创建
+        // 已有服务端副本且本地胜出：媒体未传完先入队；否则走 LWW 更新
+        if (SyncMergeService.hasPendingMedia(rec)) {
+          rec.status = 'queued';
+          rec.updatedAt = new Date().toISOString();
+          RecordRepository.update(rec);
+          SyncMergeService.enqueueRecordMedia(rec);
+          pushed++;
+          continue;
+        }
+        try {
+          const resp = await RecordApiService.update(rec.serverRecordId, buildUpdatePayload(rec));
+          rec.syncVersion = resp.data.syncVersion || rec.syncVersion;
+          rec.serverUpdatedAt = resp.data.record && resp.data.record.updatedAt
+            ? resp.data.record.updatedAt : new Date().toISOString();
+          if (resp.data.meritValue) {
+            rec.meritValue = resp.data.meritValue;
+          }
+          rec.status = 'synced';
+          rec.failReason = undefined;
+          rec.updatedAt = new Date().toISOString();
+          RecordRepository.update(rec);
+          pushed++;
+        } catch (e) {
+          if (!SyncMergeService.applyConflictWinner(rec, e)) {
+            rec.status = 'failed';
+            rec.failReason = '同步失败';
+            rec.updatedAt = new Date().toISOString();
+            RecordRepository.update(rec);
+            pushFailed++;
+          }
+        }
         continue;
       }
       if (rec.media.length > 0) {
@@ -163,6 +201,41 @@ export class SyncMergeService {
       RecordRepository.replaceAll(records);
     }
     UploadQueueService.resume();
+  }
+
+  /** 是否存在尚未上传完成的本地媒体 */
+  private static hasPendingMedia(rec: GoodDeedRecord): boolean {
+    for (const m of rec.media) {
+      if (m.localPath && !m.remoteUrl) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /** 更新遇 409 冲突：服务端较新，以服务端记录覆盖本地（保留本地 id），返回是否已处理 */
+  private static applyConflictWinner(rec: GoodDeedRecord, e: Object): boolean {
+    if (!(e instanceof HttpApiError) || e.body === null) {
+      return false;
+    }
+    const resp = e.body as ApiResponse<ConflictData>;
+    if (resp.code !== 40901 || !resp.data || !resp.data.record) {
+      return false;
+    }
+    const remote = mapRemoteToLocal(resp.data.record);
+    rec.type = remote.type;
+    rec.title = remote.title;
+    rec.content = remote.content;
+    rec.media = remote.media;
+    rec.tags = remote.tags;
+    rec.meritValue = remote.meritValue;
+    rec.syncVersion = remote.syncVersion;
+    rec.serverUpdatedAt = remote.serverUpdatedAt;
+    rec.status = 'synced';
+    rec.failReason = undefined;
+    rec.updatedAt = new Date().toISOString();
+    RecordRepository.update(rec);
+    return true;
   }
 
   /** 为带本地媒体的记录补齐上传任务（去重） */

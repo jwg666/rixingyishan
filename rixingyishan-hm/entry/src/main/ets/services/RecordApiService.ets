@@ -39,6 +39,14 @@ export interface CreateRecordPayload {
   media: CreateMediaInput[];
 }
 
+/** PUT /records/:id 载荷（LWW：携带客户端持有的 syncVersion；media 全量替换） */
+export interface UpdateRecordPayload {
+  syncVersion: number;
+  content: string;
+  tag: string;
+  media: CreateMediaInput[];
+}
+
 /** 远端记录 → 本地模型（status 恒为 synced） */
 export function mapRemoteToLocal(r: RemoteRecord): GoodDeedRecord {
   const media: MediaItem[] = [];
@@ -78,8 +86,8 @@ export function mapRemoteToLocal(r: RemoteRecord): GoodDeedRecord {
   return record;
 }
 
-/** 本地记录 → POST /records 载荷 */
-export function buildCreatePayload(record: GoodDeedRecord): CreateRecordPayload {
+/** 本地媒体 → 服务端 media 输入 */
+function buildMediaInputs(record: GoodDeedRecord): CreateMediaInput[] {
   const mediaInputs: CreateMediaInput[] = [];
   for (const m of record.media) {
     const input: CreateMediaInput = {
@@ -90,13 +98,29 @@ export function buildCreatePayload(record: GoodDeedRecord): CreateRecordPayload 
     };
     mediaInputs.push(input);
   }
+  return mediaInputs;
+}
+
+/** 本地记录 → POST /records 载荷 */
+export function buildCreatePayload(record: GoodDeedRecord): CreateRecordPayload {
   const payload: CreateRecordPayload = {
     type: record.type,
     content: record.content,
     tag: record.tags && record.tags.length > 0 ? record.tags[0] : '其他善行',
     meritValue: record.meritValue || 0,
     recordDate: record.dayKey,
-    media: mediaInputs
+    media: buildMediaInputs(record)
+  };
+  return payload;
+}
+
+/** 本地记录 → PUT /records/:id 载荷（syncVersion 缺省按 0 强制更新） */
+export function buildUpdatePayload(record: GoodDeedRecord): UpdateRecordPayload {
+  const payload: UpdateRecordPayload = {
+    syncVersion: record.syncVersion || 0,
+    content: record.content,
+    tag: record.tags && record.tags.length > 0 ? record.tags[0] : '其他善行',
+    media: buildMediaInputs(record)
   };
   return payload;
 }
@@ -118,6 +142,12 @@ export class RecordApiService {
 
   static async create(payload: CreateRecordPayload): Promise<ApiResponse<CreateRecordData>> {
     const res = await HttpClient.post<CreateRecordData>('/records', payload);
+    return res;
+  }
+
+  /** LWW 更新：版本冲突时后端返回 409/40901，调用方通过 HttpApiError 读取服务端当前记录 */
+  static async update(serverRecordId: string, payload: UpdateRecordPayload): Promise<ApiResponse<CreateRecordData>> {
+    const res = await HttpClient.put<CreateRecordData>(`/records/${serverRecordId}`, payload);
     return res;
   }
 
