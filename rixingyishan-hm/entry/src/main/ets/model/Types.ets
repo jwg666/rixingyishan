@@ -58,13 +58,13 @@ export interface UploadTask {
   updatedAt: string;
 }
 
-/** 功德标签 */
+/** 功德标签（keywords 为后端返回的逗号分隔字符串） */
 export interface MeritTag {
   id: number;
   name: string;
   icon: string;
   meritValue: number;
-  keywords: string[];
+  keywords: string;
 }
 
 /** 用户功德统计 */
