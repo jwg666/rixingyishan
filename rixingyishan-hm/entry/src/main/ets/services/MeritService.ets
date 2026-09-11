@@ -75,11 +75,11 @@ export class MeritService {
 
   static async updateNickname(nickname: string): Promise<void> {
     const body: Record<string, string> = { 'nickname': nickname };
-    await HttpClient.patch('/users/profile', body);
+    await HttpClient.patch<object>('/users/profile', body);
   }
 
   static async updateShowInRanking(showInRanking: boolean): Promise<void> {
     const body: Record<string, boolean> = { 'showInRanking': showInRanking };
-    await HttpClient.patch('/users/profile', body);
+    await HttpClient.patch<object>('/users/profile', body);
   }
 }

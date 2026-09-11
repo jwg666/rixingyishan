@@ -141,6 +141,13 @@ export function statusFgColor(status: string): string {
   return map[status] || '#999999';
 }
 
+/** 页面路由参数（router params 需为类实例，避免无类型字面量） */
+export class RouteParams {
+  type: string = '';
+  dayKey: string = '';
+  id: string = '';
+}
+
 /** 提取 Error 文案 */
 export function errorMessage(e: Object | null | undefined, fallback: string): string {
   if (e instanceof Error) {

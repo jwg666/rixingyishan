@@ -1,10 +1,10 @@
 import { http, connection } from '@kit.NetworkKit';
-import { fs } from '@kit.CoreFileKit';
+import fs from '@ohos.file.fs';
 import { RecordRepository } from './RecordRepository';
 import { HttpClient } from './HttpClient';
 import { KvStore } from './KvStore';
 import { Constants } from '../common/Constants';
-import { GoodDeedRecord, UploadTask } from '../model/Types';
+import { UploadTask } from '../model/Types';
 import { generateId, sleep } from '../common/Utils';
 import { RecordApiService, buildCreatePayload } from './RecordApiService';
 
@@ -199,12 +199,16 @@ export class UploadQueueService {
     const req = http.createHttp();
     let statusCode = 0;
     try {
+      const formData: http.MultiFormData = {
+        name: 'file',
+        data: buf,
+        remoteFileName: filename,
+        contentType: media.mimeType
+      };
       const options: http.HttpRequestOptions = {
-        method: http.HttpMethod.POST,
+        method: http.RequestMethod.POST,
         header: { 'Content-Type': 'multipart/form-data' },
-        multiFormDataList: [
-          { name: 'file', data: buf, remoteFileName: filename }
-        ],
+        multiFormDataList: [formData],
         expectDataType: http.HttpDataType.STRING,
         connectTimeout: 15000,
         readTimeout: 120000

@@ -4,7 +4,7 @@ import { RecordApiService } from '../services/RecordApiService';
 import { UploadQueueService } from '../services/UploadQueueService';
 import { GoodDeedRecord, MediaItem } from '../model/Types';
 import { Theme } from '../common/Theme';
-import { recordTypeTextDetail, statusText, statusBgColor, statusFgColor, formatFullTime, errorMessage } from '../common/Utils';
+import { recordTypeTextDetail, statusText, statusBgColor, statusFgColor, formatFullTime, errorMessage, RouteParams } from '../common/Utils';
 
 /**
  * 记录详情页 — 详情 / 媒体预览 / 失败重试 / 删除（含服务端删除同步）
@@ -21,9 +21,9 @@ struct RecordDetail {
   aboutToAppear(): void {
     const params = router.getParams();
     if (params !== undefined && params !== null) {
-      const p = params as Record<string, string>;
-      if (p['id']) {
-        this.recordId = p['id'];
+      const p = params as RouteParams;
+      if (p.id) {
+        this.recordId = p.id;
       }
     }
     this.loadRecord();

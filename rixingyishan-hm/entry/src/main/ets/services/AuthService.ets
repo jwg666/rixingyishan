@@ -3,7 +3,6 @@ import { RecordRepository } from './RecordRepository';
 import { UploadQueueService } from './UploadQueueService';
 import { KvStore } from './KvStore';
 import { Constants } from '../common/Constants';
-import { GoodDeedRecord } from '../model/Types';
 
 /** 短信发送响应 */
 export interface SmsSendResponse {
@@ -78,7 +77,7 @@ export class AuthService {
   static async logout(): Promise<void> {
     UploadQueueService.pause();
     try {
-      await HttpClient.post('/auth/logout', null);
+      await HttpClient.post<object>('/auth/logout', null);
     } catch (e) {
       // 接口失败也继续本地清理
     }

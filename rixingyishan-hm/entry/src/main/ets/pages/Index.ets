@@ -6,7 +6,7 @@ import { AuthService } from '../services/AuthService';
 import { SyncMergeService, SyncHomeResult } from '../services/SyncMergeService';
 import { GoodDeedRecord } from '../model/Types';
 import { Theme } from '../common/Theme';
-import { maskPhone } from '../common/Utils';
+import { maskPhone, RouteParams } from '../common/Utils';
 
 /**
  * 首页 — 功德卡 + 月历打点 + 当日列表 + 登录后双向同步（onShow）
@@ -89,14 +89,15 @@ struct Index {
   }
 
   private goToCreate(): void {
-    router.pushUrl({
-      url: 'pages/CreateRecord',
-      params: { dayKey: this.selectedDayKey } as Record<string, string>
-    });
+    const p = new RouteParams();
+    p.dayKey = this.selectedDayKey;
+    router.pushUrl({ url: 'pages/CreateRecord', params: p });
   }
 
   private goToDetail(id: string): void {
-    router.pushUrl({ url: 'pages/RecordDetail', params: { id: id } as Record<string, string> });
+    const p = new RouteParams();
+    p.id = id;
+    router.pushUrl({ url: 'pages/RecordDetail', params: p });
   }
 
   build() {

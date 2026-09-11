@@ -1,5 +1,5 @@
 import { HttpClient } from './HttpClient';
-import { GoodDeedRecord, MediaItem, RecordType, RemoteMedia, RemoteRecord } from '../model/Types';
+import { ApiResponse, GoodDeedRecord, MediaItem, RecordType, RemoteMedia, RemoteRecord } from '../model/Types';
 import { autoTitle } from '../common/Utils';
 
 /** GET /records 响应 data */
@@ -116,12 +116,12 @@ export class RecordApiService {
     return res.data;
   }
 
-  static async create(payload: CreateRecordPayload): Promise<CreateRecordData> {
+  static async create(payload: CreateRecordPayload): Promise<ApiResponse<CreateRecordData>> {
     const res = await HttpClient.post<CreateRecordData>('/records', payload);
-    return res.data;
+    return res;
   }
 
   static async remove(serverRecordId: string): Promise<void> {
-    await HttpClient.del(`/records/${serverRecordId}`);
+    await HttpClient.del<object>(`/records/${serverRecordId}`);
   }
 }

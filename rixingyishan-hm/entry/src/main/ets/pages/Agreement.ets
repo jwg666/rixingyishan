@@ -1,5 +1,6 @@
 import { router } from '@kit.ArkUI';
 import { Theme } from '../common/Theme';
+import { RouteParams } from '../common/Utils';
 
 interface DocSection {
   title: string;
@@ -19,8 +20,8 @@ struct Agreement {
   aboutToAppear(): void {
     const params = router.getParams();
     if (params !== undefined && params !== null) {
-      const p = params as Record<string, string>;
-      if (p['type'] === 'privacy') {
+      const p = params as RouteParams;
+      if (p.type === 'privacy') {
         this.isPrivacy = true;
       }
     }

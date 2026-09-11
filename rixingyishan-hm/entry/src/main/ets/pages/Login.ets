@@ -1,7 +1,7 @@
 import { router, promptAction } from '@kit.ArkUI';
 import { AuthService } from '../services/AuthService';
 import { Theme } from '../common/Theme';
-import { errorMessage } from '../common/Utils';
+import { errorMessage, RouteParams } from '../common/Utils';
 
 /**
  * 登录页 — 手机号 + 短信验证码 + 协议勾选（对齐 H5 pages/login）
@@ -73,6 +73,12 @@ struct Login {
     }
   }
 
+  private openAgreement(type: string): void {
+    const p = new RouteParams();
+    p.type = type;
+    router.pushUrl({ url: 'pages/Agreement', params: p });
+  }
+
   build() {
     Column() {
       // ---------- 顶部品牌 ----------
@@ -111,11 +117,12 @@ struct Login {
           .fontColor('#5A3A22')
           .width('100%')
           .margin({ bottom: 10 })
-        TextInput({ text: this.phone, placeholder: '请输入手机号', placeholderColor: '#C7B29C' })
+        TextInput({ text: this.phone, placeholder: '请输入手机号' })
           .type(InputType.PhoneNumber)
           .maxLength(11)
           .fontSize(17)
           .fontColor(Theme.text)
+          .placeholderColor('#C7B29C')
           .height(48)
           .width('100%')
           .backgroundColor('#FFF8F0')
@@ -133,11 +140,12 @@ struct Login {
           .width('100%')
           .margin({ bottom: 10 })
         Row() {
-          TextInput({ text: this.code, placeholder: '6位验证码', placeholderColor: '#C7B29C' })
+          TextInput({ text: this.code, placeholder: '6位验证码' })
             .type(InputType.Number)
             .maxLength(6)
             .fontSize(17)
             .fontColor(Theme.text)
+            .placeholderColor('#C7B29C')
             .height(48)
             .layoutWeight(1)
             .backgroundColor('#FFF8F0')
@@ -167,7 +175,6 @@ struct Login {
           .fontSize(18)
           .fontWeight(FontWeight.Medium)
           .fontColor(Color.White)
-          .letterSpacing(6)
           .backgroundColor(this.canLogin() ? Theme.accent : '#E5D8C8')
           .borderRadius(26)
           .margin({ top: 24 })
@@ -196,7 +203,7 @@ struct Login {
             this.agreed = !this.agreed;
           })
 
-          Text() {
+          Flex({ wrap: FlexWrap.Wrap, alignItems: ItemAlign.Center }) {
             Text('我已阅读并同意 ')
               .fontSize(13)
               .fontColor('#A8907A')
@@ -204,7 +211,7 @@ struct Login {
               .fontSize(13)
               .fontColor(Theme.accent)
               .onClick(() => {
-                router.pushUrl({ url: 'pages/Agreement', params: { type: 'agreement' } as Record<string, string> });
+                this.openAgreement('agreement');
               })
             Text(' 和 ')
               .fontSize(13)
@@ -213,13 +220,11 @@ struct Login {
               .fontSize(13)
               .fontColor(Theme.accent)
               .onClick(() => {
-                router.pushUrl({ url: 'pages/Agreement', params: { type: 'privacy' } as Record<string, string> });
+                this.openAgreement('privacy');
               })
           }
+          .layoutWeight(1)
           .margin({ left: 8 })
-          .onClick(() => {
-            this.agreed = !this.agreed;
-          })
         }
         .width('100%')
         .alignItems(VerticalAlign.Top)

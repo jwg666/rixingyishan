@@ -57,7 +57,10 @@ export class HttpClient {
         HttpClient.clearSessionAndRedirect();
         throw new Error('登录已过期，请重新登录');
       }
-      throw e;
+      if (e instanceof Error) {
+        throw e;
+      }
+      throw new Error('请求失败');
     }
   }
 
@@ -72,9 +75,8 @@ export class HttpClient {
       }
     }
 
-    const method = opts.method as http.HttpMethod;
     const options: http.HttpRequestOptions = {
-      method: method,
+      method: HttpClient.toRequestMethod(opts.method),
       header: headers,
       expectDataType: http.HttpDataType.STRING,
       connectTimeout: 15000,
@@ -121,6 +123,22 @@ export class HttpClient {
     throw new Error((body && body.message) || `请求失败 (${statusCode})`);
   }
 
+  private static toRequestMethod(m: string): http.RequestMethod {
+    if (m === 'POST') {
+      return http.RequestMethod.POST;
+    }
+    if (m === 'DELETE') {
+      return http.RequestMethod.DELETE;
+    }
+    if (m === 'PATCH') {
+      return http.RequestMethod.PATCH;
+    }
+    if (m === 'PUT') {
+      return http.RequestMethod.PUT;
+    }
+    return http.RequestMethod.GET;
+  }
+
   /** 单飞刷新 token：并发 401 时只发起一次刷新 */
   private static refreshOnce(): Promise<boolean> {
     if (HttpClient.refreshing !== null) {
@@ -140,7 +158,7 @@ export class HttpClient {
     const body: Record<string, string> = { 'refreshToken': refreshToken };
     const opts: HttpOptions = { url: '/auth/refresh', method: 'POST', data: body, skipAuth: true };
     try {
-      const resp = await HttpClient.raw<{ accessToken: string; refreshToken: string }>(opts);
+      const resp = await HttpClient.raw<TokenPair>(opts);
       KvStore.setString(Constants.KEY_ACCESS_TOKEN, resp.data.accessToken);
       KvStore.setString(Constants.KEY_REFRESH_TOKEN, resp.data.refreshToken);
       return true;
@@ -158,6 +176,12 @@ export class HttpClient {
       // 非 UI 上下文时跳转失败，静默；页面会在自身 onShow 检查登录态
     }
   }
+}
+
+/** 刷新 token 响应 */
+interface TokenPair {
+  accessToken: string;
+  refreshToken: string;
 }
 
 /** 401 内部标记错误 */

@@ -7,7 +7,7 @@ import { KvStore } from '../services/KvStore';
 import { Constants } from '../common/Constants';
 import { UserProfile } from '../model/Types';
 import { Theme } from '../common/Theme';
-import { getAvatarColor, getNicknameInitial, maskPhone } from '../common/Utils';
+import { getAvatarColor, getNicknameInitial, maskPhone, RouteParams } from '../common/Utils';
 
 /**
  * 设置页 — 资料 / 仅 Wi-Fi / 排行可见 / 退出 / 清缓存 / 清数据 / 导出 / 协议入口
@@ -176,6 +176,12 @@ struct Settings {
         }
       }
     });
+  }
+
+  private openAgreement(type: string): void {
+    const p = new RouteParams();
+    p.type = type;
+    router.pushUrl({ url: 'pages/Agreement', params: p });
   }
 
   private async exportData(): Promise<void> {
@@ -356,11 +362,11 @@ struct Settings {
             // ---------- 协议 ----------
             Column() {
               this.settingItem('用户协议', '→', false, () => {
-                router.pushUrl({ url: 'pages/Agreement', params: { type: 'agreement' } as Record<string, string> });
+                this.openAgreement('agreement');
               })
               Divider().color(Theme.divider).strokeWidth(0.5).margin({ left: 14, right: 14 })
               this.settingItem('隐私政策', '→', false, () => {
-                router.pushUrl({ url: 'pages/Agreement', params: { type: 'privacy' } as Record<string, string> });
+                this.openAgreement('privacy');
               })
             }
             .width('100%')
@@ -400,7 +406,11 @@ struct Settings {
           }
           .layoutWeight(1)
           .onClick(() => {
-            router.back();
+            try {
+              router.back({ url: 'pages/Index' });
+            } catch (e) {
+              router.back();
+            }
           })
           Column({ space: 2 }) {
             Text('⚙️').fontSize(20)
@@ -428,9 +438,10 @@ struct Settings {
               .fontSize(17)
               .fontWeight(FontWeight.Bold)
               .fontColor('#333333')
-            TextInput({ text: this.newNickname, placeholder: '输入新昵称', placeholderColor: '#C7B29C' })
+            TextInput({ text: this.newNickname, placeholder: '输入新昵称' })
               .fontSize(15)
               .maxLength(20)
+              .placeholderColor('#C7B29C')
               .height(44)
               .width('100%')
               .backgroundColor('#FFF8F0')

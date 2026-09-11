@@ -1,7 +1,7 @@
 import { cameraPicker, camera } from '@kit.CameraKit';
 import { photoAccessHelper } from '@kit.MediaLibraryKit';
 import { common } from '@kit.AbilityKit';
-import { fs } from '@kit.CoreFileKit';
+import fs from '@ohos.file.fs';
 import { MediaItem } from '../model/Types';
 
 /**

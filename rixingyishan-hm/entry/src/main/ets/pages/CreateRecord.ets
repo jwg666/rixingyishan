@@ -10,7 +10,7 @@ import { AuthService } from '../services/AuthService';
 import { KvStore } from '../services/KvStore';
 import { GoodDeedRecord, MediaItem, MeritTag, RecordType } from '../model/Types';
 import { Theme } from '../common/Theme';
-import { todayKey, autoTitle, generateId, errorMessage } from '../common/Utils';
+import { todayKey, autoTitle, generateId, errorMessage, RouteParams } from '../common/Utils';
 
 /**
  * 新建记录页 — 内容 + 功德标签/智能匹配 + 自定义标签 + 拍照/录像/相册
@@ -33,8 +33,8 @@ struct CreateRecord {
   aboutToAppear(): void {
     const params = router.getParams();
     if (params !== undefined && params !== null) {
-      const p = params as Record<string, string>;
-      const dayKey = p['dayKey'];
+      const p = params as RouteParams;
+      const dayKey = p.dayKey;
       if (dayKey && /^\d{4}-\d{2}-\d{2}$/.test(dayKey)) {
         this.targetDayKey = dayKey;
       }
@@ -315,10 +315,11 @@ struct CreateRecord {
               .fontColor('#333333')
               .width('100%')
               .margin({ bottom: 8 })
-            TextArea({ text: this.content, placeholder: '记录今天的好事...', placeholderColor: '#C7B29C' })
+            TextArea({ text: this.content, placeholder: '记录今天的好事...' })
               .maxLength(500)
               .fontSize(15)
               .fontColor(Theme.text)
+              .placeholderColor('#C7B29C')
               .backgroundColor('#FFF8F0')
               .borderRadius(10)
               .width('100%')
@@ -389,8 +390,9 @@ struct CreateRecord {
                 .borderRadius(6)
                 .margin({ right: 8, bottom: 6 })
               }, (t: string) => t)
-              TextInput({ text: this.newTag, placeholder: '输入标签后回车', placeholderColor: '#C7B29C' })
+              TextInput({ text: this.newTag, placeholder: '输入标签后回车' })
                 .fontSize(12)
+                .placeholderColor('#C7B29C')
                 .height(32)
                 .width(150)
                 .backgroundColor(Color.Transparent)
@@ -454,7 +456,7 @@ struct CreateRecord {
                 ForEach(this.media, (m: MediaItem, idx: number) => {
                   Column({ space: 4 }) {
                     if (m.mimeType.includes('video')) {
-                      Stack() {
+                      Stack({ alignContent: Alignment.Center }) {
                         Text('▶')
                           .fontSize(26)
                           .fontColor('#999999')
@@ -463,7 +465,6 @@ struct CreateRecord {
                       .height(84)
                       .backgroundColor('#F0F0F0')
                       .borderRadius(8)
-                      .justifyContent(FlexAlign.Center)
                     } else {
                       Image(m.localPath || m.remoteUrl || '')
                         .width(84)
