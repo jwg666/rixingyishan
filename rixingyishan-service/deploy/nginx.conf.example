@@ -1,0 +1,44 @@
+# rixingyishan-service nginx 反代示例（子路径 /rxys 部署）
+# 放入 /etc/nginx/conf.d/ 或站点配置后 nginx -t && systemctl reload nginx
+#
+# 关键点：
+# - trailing slash 的 proxy_pass 会剥掉 /rxys 前缀，后端路由保持 /api、/uploads 原样
+# - RXYS_BASE_URL=https://your.domain/rxys 时，remoteUrl 拼出来是
+#   https://your.domain/rxys/uploads/...，正好命中 location /rxys/
+# - 上传视频上限 50MB，client_max_body_size 留足余量
+
+server {
+    listen 80;
+    server_name your.domain;
+
+    # 强制跳转 HTTPS（证书就绪后启用）
+    # return 301 https://$host$request_uri;
+
+    location /rxys/ {
+        proxy_pass http://127.0.0.1:8866/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        client_max_body_size 60m;
+        proxy_read_timeout 120s;
+    }
+}
+
+# HTTPS 版本（certbot 签发后参考）：
+# server {
+#     listen 443 ssl;
+#     server_name your.domain;
+#     ssl_certificate     /etc/letsencrypt/live/your.domain/fullchain.pem;
+#     ssl_certificate_key /etc/letsencrypt/live/your.domain/privkey.pem;
+#
+#     location /rxys/ {
+#         proxy_pass http://127.0.0.1:8866/;
+#         proxy_set_header Host $host;
+#         proxy_set_header X-Real-IP $remote_addr;
+#         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+#         proxy_set_header X-Forwarded-Proto $scheme;
+#         client_max_body_size 60m;
+#         proxy_read_timeout 120s;
+#     }
+# }

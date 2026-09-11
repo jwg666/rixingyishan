@@ -1,0 +1,18 @@
+# /etc/systemd/system/rixingyishan.service
+# systemctl daemon-reload && systemctl enable --now rixingyishan
+
+[Unit]
+Description=rixingyishan Go service (日行一善后端)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/rixingyishan-service
+ExecStart=/opt/rixingyishan-service/rixingyishan-service
+Restart=on-failure
+RestartSec=3
+Environment=GIN_MODE=release
+# .env 由应用自行从 WorkingDirectory 加载（JWT_SECRET、SMS_PROVIDER 等）
+
+[Install]
+WantedBy=multi-user.target
