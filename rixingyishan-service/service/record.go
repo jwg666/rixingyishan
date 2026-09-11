@@ -1,8 +1,6 @@
 package service
 
 import (
-	"time"
-
 	"gorm.io/gorm"
 	"rixingyishan-service/model"
 )
@@ -17,46 +15,141 @@ func NewRecordService(db *gorm.DB) *RecordService {
 	return &RecordService{DB: db}
 }
 
-// CreateRecord 创建记录
+// resolveTagMerit 服务端权威计分：按 tag 从 MeritTag 配置取分值；
+// 未知/停用 tag 归一化为「其他善行」，配置整体缺失时该 tag 原样保留、分值为 0。
+// 客户端上报的 meritValue 不被信任。
+func resolveTagMerit(db *gorm.DB, tag string) (string, int) {
+	var t model.MeritTag
+	if err := db.Where("name = ? AND enabled = ?", tag, true).First(&t).Error; err == nil {
+		return t.Name, t.MeritValue
+	}
+	var fallback model.MeritTag
+	if err := db.Where("name = ? AND enabled = ?", "其他善行", true).First(&fallback).Error; err == nil {
+		return fallback.Name, fallback.MeritValue
+	}
+	return tag, 0
+}
+
+// CreateRecord 创建记录（计分/媒体/功德累加在同一事务内）
 func (s *RecordService) CreateRecord(userID uint, req *CreateRecordReq) (*model.Record, error) {
 	record := &model.Record{
 		UserID:      userID,
 		Type:        req.Type,
 		Content:     req.Content,
-		Tag:         req.Tag,
-		MeritValue:  req.MeritValue,
 		RecordDate:  req.RecordDate,
 		SyncVersion: 1,
 	}
-	if record.Tag == "" {
-		record.Tag = "其他善行"
-	}
-	if err := s.DB.Create(record).Error; err != nil {
+	err := s.DB.Transaction(func(tx *gorm.DB) error {
+		tag, merit := resolveTagMerit(tx, req.Tag)
+		record.Tag = tag
+		record.MeritValue = merit
+		if err := tx.Create(record).Error; err != nil {
+			return err
+		}
+		for i, m := range req.Media {
+			media := model.Media{
+				RecordID:  record.ID,
+				ObjectKey: m.ObjectKey,
+				RemoteUrl: m.RemoteUrl,
+				MimeType:  m.MimeType,
+				Size:      m.Size,
+				SortOrder: i,
+			}
+			if err := tx.Create(&media).Error; err != nil {
+				return err
+			}
+			record.Media = append(record.Media, media)
+		}
+		if record.MeritValue > 0 {
+			if err := tx.Model(&model.User{}).Where("id = ?", userID).
+				UpdateColumn("total_merit", gorm.Expr("total_merit + ?", record.MeritValue)).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
 		return nil, err
 	}
-	// 创建 media
-	for i, m := range req.Media {
-		media := model.Media{
-			RecordID:  record.ID,
-			ObjectKey: m.ObjectKey,
-			RemoteUrl: m.RemoteUrl,
-			MimeType:  m.MimeType,
-			Size:      m.Size,
-			SortOrder: i,
-		}
-		if err := s.DB.Create(&media).Error; err != nil {
-			return nil, err
-		}
-		record.Media = append(record.Media, media)
-	}
-
-	// 累加用户功德
-	if record.MeritValue > 0 {
-		s.DB.Model(&model.User{}).Where("id = ?", userID).
-			UpdateColumn("total_merit", gorm.Expr("total_merit + ?", record.MeritValue))
-	}
-
 	return record, nil
+}
+
+// ErrSyncConflict LWW 冲突：客户端携带的 syncVersion 落后于服务端
+type ErrSyncConflict struct {
+	Current *model.Record
+}
+
+func (e *ErrSyncConflict) Error() string {
+	return "记录已被更新，请以服务端最新版本为准"
+}
+
+// UpdateRecordReq 更新记录请求（LWW：携带客户端持有的 syncVersion）。
+// type 与 recordDate 不可变；media 全量替换。
+type UpdateRecordReq struct {
+	SyncVersion int          `json:"syncVersion"`
+	Content     string       `json:"content"`
+	Tag         string       `json:"tag"`
+	Media       []MediaInput `json:"media"`
+}
+
+// UpdateRecord LWW 更新：incoming syncVersion < 服务端版本时返回 ErrSyncConflict（携带服务端当前记录）；
+// syncVersion 缺省（0）视为强制更新。内容、计分、media 替换与功德差额在同一事务内。
+func (s *RecordService) UpdateRecord(id, userID uint, req *UpdateRecordReq) (*model.Record, error) {
+	err := s.DB.Transaction(func(tx *gorm.DB) error {
+		var record model.Record
+		if err := tx.Preload("Media", func(db *gorm.DB) *gorm.DB {
+			return db.Order("sort_order ASC")
+		}).Where("id = ? AND user_id = ?", id, userID).First(&record).Error; err != nil {
+			return err
+		}
+		if req.SyncVersion > 0 && req.SyncVersion < record.SyncVersion {
+			return &ErrSyncConflict{Current: &record}
+		}
+
+		tag := record.Tag
+		if req.Tag != "" {
+			tag = req.Tag
+		}
+		tag, newMerit := resolveTagMerit(tx, tag)
+		meritDelta := newMerit - record.MeritValue
+
+		updates := map[string]interface{}{
+			"content":      req.Content,
+			"tag":          tag,
+			"merit_value":  newMerit,
+			"sync_version": record.SyncVersion + 1,
+		}
+		if err := tx.Model(&model.Record{}).Where("id = ?", record.ID).Updates(updates).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("record_id = ?", record.ID).Delete(&model.Media{}).Error; err != nil {
+			return err
+		}
+		for i, m := range req.Media {
+			media := model.Media{
+				RecordID:  record.ID,
+				ObjectKey: m.ObjectKey,
+				RemoteUrl: m.RemoteUrl,
+				MimeType:  m.MimeType,
+				Size:      m.Size,
+				SortOrder: i,
+			}
+			if err := tx.Create(&media).Error; err != nil {
+				return err
+			}
+		}
+		if meritDelta != 0 {
+			if err := tx.Model(&model.User{}).Where("id = ?", userID).
+				UpdateColumn("total_merit", gorm.Expr("total_merit + ?", meritDelta)).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return s.GetRecordByID(id, userID)
 }
 
 // GetRecordByID 获取记录详情
@@ -87,13 +180,24 @@ func (s *RecordService) ListRecordsByDay(userID uint, dayKey string, page, pageS
 	return records, total, nil
 }
 
-// DeleteRecord 软删除
+// DeleteRecord 软删除，并在同一事务内扣回该记录贡献的功德
 func (s *RecordService) DeleteRecord(id, userID uint) error {
-	result := s.DB.Where("id = ? AND user_id = ?", id, userID).Delete(&model.Record{})
-	if result.RowsAffected == 0 {
-		return gorm.ErrRecordNotFound
-	}
-	return result.Error
+	return s.DB.Transaction(func(tx *gorm.DB) error {
+		var record model.Record
+		if err := tx.Where("id = ? AND user_id = ?", id, userID).First(&record).Error; err != nil {
+			return err
+		}
+		if err := tx.Delete(&record).Error; err != nil {
+			return err
+		}
+		if record.MeritValue > 0 {
+			if err := tx.Model(&model.User{}).Where("id = ?", userID).
+				UpdateColumn("total_merit", gorm.Expr("total_merit - ?", record.MeritValue)).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
 // GetDaysByMonth 获取当月有记录的日期列表
@@ -111,12 +215,11 @@ func (s *RecordService) GetDaysByMonth(userID uint, month string) ([]string, err
 	return days, nil
 }
 
-// CreateRecordReq 创建记录请求
+// CreateRecordReq 创建记录请求（meritValue 由服务端按 tag 计算，不接受客户端上报）
 type CreateRecordReq struct {
 	Type       string       `json:"type" binding:"required,oneof=photo video text"`
 	Content    string       `json:"content"`
 	Tag        string       `json:"tag"`
-	MeritValue int          `json:"meritValue"`
 	RecordDate string       `json:"recordDate" binding:"required"`
 	Media      []MediaInput `json:"media"`
 }
@@ -156,6 +259,3 @@ type VerifyResult struct {
 	UserID       uint   `json:"userId"`
 	Phone        string `json:"phone"`
 }
-
-// Notice: we need time import for potential use
-var _ = time.ANSIC

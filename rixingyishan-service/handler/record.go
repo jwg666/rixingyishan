@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -135,6 +136,82 @@ func (h *RecordHandler) GetRecord(c *gin.Context) {
 		Code:    0,
 		Message: "success",
 		Data:    record,
+	})
+}
+
+// UpdateRecord LWW 更新记录。
+// 版本冲突时返回 HTTP 409 + 业务码 40901，data.record 为服务端当前版本，供客户端合并。
+func (h *RecordHandler) UpdateRecord(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+	if userID == 0 {
+		c.JSON(http.StatusUnauthorized, middleware.Response{
+			Code:    40001,
+			Message: "未认证",
+			Data:    nil,
+		})
+		return
+	}
+
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, middleware.Response{
+			Code:    40001,
+			Message: "id 错误",
+			Data:    nil,
+		})
+		return
+	}
+
+	var req service.UpdateRecordReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, middleware.Response{
+			Code:    40001,
+			Message: "参数错误: " + err.Error(),
+			Data:    nil,
+		})
+		return
+	}
+
+	record, err := h.Svc.UpdateRecord(uint(id), userID, &req)
+	if err != nil {
+		var conflict *service.ErrSyncConflict
+		if errors.As(err, &conflict) {
+			c.JSON(http.StatusConflict, middleware.Response{
+				Code:    40901,
+				Message: conflict.Error(),
+				Data: gin.H{
+					"serverRecordId": conflict.Current.ID,
+					"syncVersion":    conflict.Current.SyncVersion,
+					"record":         conflict.Current,
+				},
+			})
+			return
+		}
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusNotFound, middleware.Response{
+				Code:    40001,
+				Message: "记录不存在",
+				Data:    nil,
+			})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, middleware.Response{
+			Code:    40001,
+			Message: "更新失败: " + err.Error(),
+			Data:    nil,
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, middleware.Response{
+		Code:    0,
+		Message: "success",
+		Data: gin.H{
+			"serverRecordId": record.ID,
+			"syncVersion":    record.SyncVersion,
+			"meritValue":     record.MeritValue,
+			"record":         record,
+		},
 	})
 }
 

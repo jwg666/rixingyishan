@@ -23,6 +23,49 @@ func NewUploadHandler() *UploadHandler {
 	return &UploadHandler{}
 }
 
+// 上传白名单与大小上限（对齐客户端 MediaValidationService：图片 10MB、视频 50MB）
+var allowedMimeExts = map[string][]string{
+	"image/jpeg": {".jpg", ".jpeg"},
+	"image/png":  {".png"},
+	"image/webp": {".webp"},
+	"video/mp4":  {".mp4"},
+}
+
+const (
+	maxImageSize = 10 * 1024 * 1024
+	maxVideoSize = 50 * 1024 * 1024
+)
+
+// validateUploadMeta 校验 mime/扩展名/大小，返回错误信息；空串表示通过
+func validateUploadMeta(mimeType, filename string, size int64) string {
+	exts, ok := allowedMimeExts[strings.ToLower(mimeType)]
+	if !ok {
+		return "不支持的文件类型"
+	}
+	ext := strings.ToLower(filepath.Ext(filename))
+	matched := false
+	for _, e := range exts {
+		if ext == e {
+			matched = true
+			break
+		}
+	}
+	if !matched {
+		return "文件扩展名与类型不符"
+	}
+	if size <= 0 {
+		return "文件大小无效"
+	}
+	limit := int64(maxImageSize)
+	if strings.HasPrefix(strings.ToLower(mimeType), "video/") {
+		limit = maxVideoSize
+	}
+	if size > limit {
+		return "文件超过大小限制"
+	}
+	return ""
+}
+
 // GetUploadPolicy 获取上传凭证
 func (h *UploadHandler) GetUploadPolicy(c *gin.Context) {
 	var req struct {
@@ -34,6 +77,15 @@ func (h *UploadHandler) GetUploadPolicy(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, middleware.Response{
 			Code:    40001,
 			Message: "参数不完整",
+			Data:    nil,
+		})
+		return
+	}
+
+	if msg := validateUploadMeta(req.MimeType, req.Filename, req.Size); msg != "" {
+		c.JSON(http.StatusBadRequest, middleware.Response{
+			Code:    40001,
+			Message: msg,
 			Data:    nil,
 		})
 		return
@@ -65,6 +117,17 @@ func (h *UploadHandler) UploadFile(c *gin.Context) {
 		return
 	}
 	defer file.Close()
+
+	// 内容类型取 multipart part 声明值，校验白名单/扩展名/大小
+	mimeType := header.Header.Get("Content-Type")
+	if msg := validateUploadMeta(mimeType, header.Filename, header.Size); msg != "" {
+		c.JSON(http.StatusBadRequest, middleware.Response{
+			Code:    40001,
+			Message: msg,
+			Data:    nil,
+		})
+		return
+	}
 
 	objectKey := buildObjectKey(header.Filename)
 	fullPath := filepath.Join(config.UploadDir, objectKey)
@@ -128,6 +191,3 @@ func buildObjectKey(filename string) string {
 	)
 	return objectKey
 }
-
-// Notice: ensure strings is used
-var _ = strings.TrimSpace

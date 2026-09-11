@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"gorm.io/driver/sqlite"
+	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
 	"rixingyishan-service/config"
 	"rixingyishan-service/handler"
@@ -96,8 +96,9 @@ func main() {
 			auth.POST("/logout", authHandler.Logout)
 		}
 
-		// Upload 路由（无需认证，MVP 阶段）
+		// Upload 路由（需要认证：任何人可传会刷爆磁盘）
 		upload := api.Group("/upload")
+		upload.Use(middleware.AuthRequired())
 		{
 			upload.POST("/policy", uploadHandler.GetUploadPolicy)
 			upload.POST("/file", uploadHandler.UploadFile)
@@ -111,6 +112,7 @@ func main() {
 			records.GET("", recordHandler.ListRecords)
 			records.GET("/days", recordHandler.GetDays)
 			records.GET("/:id", recordHandler.GetRecord)
+			records.PUT("/:id", recordHandler.UpdateRecord)
 			records.DELETE("/:id", recordHandler.DeleteRecord)
 		}
 

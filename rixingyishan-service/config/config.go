@@ -2,6 +2,9 @@ package config
 
 import (
 	"bufio"
+	"crypto/rand"
+	"encoding/hex"
+	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -20,7 +23,6 @@ const (
 	UploadURLPrefix = "/uploads"
 
 	// JWT
-	JWTSecret          = "rixingyishan-dev-jwt-secret-2026"
 	AccessTokenExpire  = 2 * time.Hour
 	RefreshTokenExpire = 30 * 24 * time.Hour
 
@@ -32,6 +34,10 @@ const (
 	SMSDailyLimitPhone = 5
 	SMSDailyLimitIP    = 10
 )
+
+// JWTSecret 从 JWT_SECRET 读取；未配置时每次启动随机生成
+// （重启后已签发 token 全部失效，生产环境必须显式配置）
+var JWTSecret string
 
 // ---------- SMS 配置（环境变量 / .env 加载） ----------
 
@@ -52,6 +58,8 @@ var (
 func init() {
 	loadDotEnv(".env")
 
+	JWTSecret = resolveJWTSecret()
+
 	if v := os.Getenv("SMS_PROVIDER"); v != "" {
 		SMSProvider = strings.ToLower(strings.TrimSpace(v))
 	}
@@ -64,6 +72,19 @@ func init() {
 			SMSCodeTTL = time.Duration(n) * time.Second
 		}
 	}
+}
+
+// resolveJWTSecret 优先取 JWT_SECRET 环境变量；缺失时随机生成并告警
+func resolveJWTSecret() string {
+	if v := strings.TrimSpace(os.Getenv("JWT_SECRET")); v != "" {
+		return v
+	}
+	log.Println("[config] 警告：未设置 JWT_SECRET，本次启动使用随机密钥，重启后将使所有已登录会话失效")
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		log.Fatalf("generate random JWT secret: %v", err)
+	}
+	return hex.EncodeToString(b)
 }
 
 // loadDotEnv 简易 .env 加载：KEY=VALUE 行，忽略空行与 # 注释；
